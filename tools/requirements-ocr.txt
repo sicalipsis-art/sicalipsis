@@ -1,0 +1,20 @@
+# OCR environment for tools/ocr_from_r2.py. Kept separate from requirements.txt
+# because it needs a GPU build of PyTorch and specific library versions.
+#
+# Set up (Windows, Python 3.14, NVIDIA GPU):
+#   python -m venv --system-site-packages ../ocr-env      (system Python must already have CUDA PyTorch and PyMuPDF)
+#   ../ocr-env/Scripts/python -m pip install --no-deps surya-ocr==0.17.1
+#   ../ocr-env/Scripts/python -m pip install -r tools/requirements-ocr.txt
+#
+# surya-ocr 0.17.1 is installed with --no-deps because it pins Pillow < 11, which
+# has no build for Python 3.14; it works with the newer Pillow. Later Surya
+# releases (0.2x) need Docker or a separate inference server instead.
+transformers>=4.56.1,<5
+opencv-python-headless
+pypdfium2
+einops
+pydantic-settings
+platformdirs
+filetype
+python-dotenv
+click

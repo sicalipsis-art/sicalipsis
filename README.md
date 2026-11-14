@@ -14,7 +14,9 @@ when it is built.
 
 ## Status (13 November 2026)
 
-- The site builds and runs locally with a **45-item pilot**.
+- The site is live at https://sicalipsis-art.github.io/sicalipsis/. It started as
+  a 45-item pilot and grows as originals arrive in the bucket and are published
+  (step 6 below).
 - The pilot's images and manifests are served from the bucket's public
   development address, `https://pub-86bc04aba3b948f081b236797ce9d2a6.r2.dev/web`.
   Cloudflare rate-limits that address and does not intend it for production; a
@@ -143,21 +145,25 @@ Run the steps in order from the repository root. Every script can be re-run.
    python tools/build_master.py ../data ../data/master/sicalipsis.csv
    ```
 
-6. **Make web images and IIIF manifests** for the rows to publish, then upload
-   them. The rows file is any subset of the master spreadsheet (the pilot's was
-   chosen with `tools/pilot_select.py`); the originals folder must hold those
-   files at their Box paths; the base address is where `web/` is served from,
-   for example `https://<public bucket address>/web`.
+6. **Publish what is in the bucket.** For every object whose original has
+   arrived in `originals/` and is not yet published, this downloads the file
+   from R2, makes page images, thumbnail, text and the IIIF manifest, uploads
+   them to `web/`, rebuilds `web/iiif/collection.json`, and writes
+   `../data/published/rows.csv`. Run it again whenever more originals have
+   arrived; finished objects are skipped.
 
    ```sh
-   python tools/make_iiif.py <rows.csv> <originals_dir> <web_out_dir> <base_url>
-   rclone copy <web_out_dir> r2:sicalipsis-files/web
+   python tools/publish_from_r2.py ../data ../work <public bucket address>
    ```
+
+   The 104 Omeka-only files, unconfirmed title matches and the novelette page
+   images are not published. (`tools/make_iiif.py` does the same work for a
+   hand-picked rows file and a local folder of originals; the pilot used it.)
 
 7. **Regenerate the site's data-driven pages, then build.**
 
    ```sh
-   python tools/make_site_content.py <rows.csv> ../data/master/sicalipsis.csv . <base_url>
+   python tools/make_site_content.py ../data/published/rows.csv ../data/master/sicalipsis.csv . <public bucket address>/web
    npm run build      # output in site/
    ```
 
