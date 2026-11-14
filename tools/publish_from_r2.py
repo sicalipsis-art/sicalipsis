@@ -36,11 +36,21 @@ BUCKET = "r2:sicalipsis-files"
 READY = {"in Box (identical)", "in Box (OCR version)", "in Box (not in Omeka)"}
 
 
+NETWORK = ("no such host", "dial tcp", "request send failed", "connection reset", "timeout", "i/o timeout",
+           "connection refused", "TLS handshake", "EOF")
+
+
 def rclone(*args, capture=False):
-    result = subprocess.run(["rclone", *args], capture_output=True, text=True, encoding="utf-8")
-    if result.returncode != 0:
-        raise RuntimeError(f"rclone {args[0]} failed: {result.stderr.strip()[-300:]}")
-    return result.stdout if capture else None
+    """Run rclone; if the internet connection is down, wait and try again instead of giving up."""
+    for attempt in range(40):
+        result = subprocess.run(["rclone", *args], capture_output=True, text=True, encoding="utf-8")
+        if result.returncode == 0:
+            return result.stdout if capture else None
+        if not any(sign in result.stderr for sign in NETWORK):
+            break
+        print(f"  connection problem, waiting to retry ({attempt + 1})", flush=True)
+        time.sleep(30)
+    raise RuntimeError(f"rclone {args[0]} failed: {result.stderr.strip()[-300:]}")
 
 
 def main():

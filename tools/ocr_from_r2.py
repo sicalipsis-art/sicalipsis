@@ -57,11 +57,21 @@ PAGE_COLUMNS = ["objectid", "page", "lines", "chars", "mean_confidence", "low_li
 LOOP = re.compile(r"(.{8,40}?)\1{2,}")
 
 
+NETWORK = ("no such host", "dial tcp", "request send failed", "connection reset", "timeout", "i/o timeout",
+           "connection refused", "TLS handshake", "EOF")
+
+
 def rclone(*args, capture=False):
-    result = subprocess.run(["rclone", *args], capture_output=True, text=True, encoding="utf-8")
-    if result.returncode != 0:
-        raise RuntimeError(f"rclone {args[0]} failed: {result.stderr.strip()[-300:]}")
-    return result.stdout if capture else None
+    """Run rclone; if the internet connection is down, wait and try again instead of giving up."""
+    for attempt in range(40):
+        result = subprocess.run(["rclone", *args], capture_output=True, text=True, encoding="utf-8")
+        if result.returncode == 0:
+            return result.stdout if capture else None
+        if not any(sign in result.stderr for sign in NETWORK):
+            break
+        print(f"  connection problem, waiting to retry ({attempt + 1})", flush=True)
+        time.sleep(30)
+    raise RuntimeError(f"rclone {args[0]} failed: {result.stderr.strip()[-300:]}")
 
 
 def clean(text):
@@ -100,7 +110,10 @@ def read_page(prediction, layout):
             # Too much text for the width. A tall box means several printed lines were
             # read as one (the words are real, spaces at the joins may be missing);
             # a box of normal height means the text was invented.
-            flags.append("merged" if height and ln["b"][3] - ln["b"][1] > 1.6 * height else "dense")
+            if height and ln["b"][3] - ln["b"][1] > 1.6 * height:
+                flags.append("merged")
+            elif ln["c"] < 0.6:   # confidently read lines that are merely tight are left alone
+                flags.append("dense")
         if flags:
             ln["f"] = flags
     n = len(lines)
