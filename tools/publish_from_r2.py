@@ -105,7 +105,8 @@ def main():
             state_path.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
             done += 1
             print(f"[{i}/{len(todo)}] {oid}  {len(rendered['pages']):3} page(s)  "
-                  f"{in_bucket[row['r2_key']] / 1e6:6.1f} MB  {row['title'][:48]}", flush=True)
+                  f"{in_bucket[row['r2_key']] / 1e6:6.1f} MB  {row['title'][:48]}"
+                  + (f"  DAMAGED FILE: {rendered['damaged']}" if rendered.get("damaged") else ""), flush=True)
         except Exception as exc:
             failed += 1
             print(f"[{i}/{len(todo)}] {oid}  FAILED: {str(exc)[:200]}", flush=True)

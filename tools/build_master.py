@@ -15,6 +15,10 @@ Dates are standardised, and missing ones worked out, by dates.py; pass
 --texts <dir> (holding text/<objectid>.txt and ocr/<objectid>.txt) to let it also
 read dates printed in the documents themselves.
 
+Image tags (tag_* columns) are copied from <data_dir>/tags/image_tags.csv, which
+tag_images.py writes; tag_source says whether a picture's tags were given by a
+labeller or by the classifier.
+
 The URL columns (object_location, image_small, image_thumb) stay empty until the
 file store has a public address; r2_key says where each file is in the bucket.
 """
@@ -39,8 +43,9 @@ COLUMNS = [
     "date_range", "date_basis", "date_original",
     "description", "subject", "publisher", "contributor", "source", "relation",
     "identifier", "type", "format", "section", "series", "collection",
+    "tag_type", "tag_figures", "tag_dress", "tag_colour", "tag_themes", "tag_source",
     "display_template", "object_location", "image_small", "image_thumb",
-    "file_status", "r2_key", "box_path", "omeka_item_id", "omeka_url", "file_md5",
+    "file_status", "file_note", "r2_key", "box_path", "omeka_item_id", "omeka_url", "file_md5",
 ]
 
 SECTION_OF_COLLECTION = {
@@ -240,6 +245,18 @@ if text_dir:
             if len(content) > 200:
                 texts[path.stem] = content
 date_tally = dates.resolve(rows + new_rows, texts)
+# Files that were already cut short on the Omeka server (reconciliation/damaged_on_omeka.csv).
+damaged_path = rec / "damaged_on_omeka.csv"
+damaged = {d["stored_name"]: d["note"] for d in read_csv(damaged_path)} if damaged_path.exists() else {}
+for r in rows:
+    r["file_note"] = damaged.get(r["r2_key"].rsplit("/", 1)[-1], "")
+tags_path = data / "tags" / "image_tags.csv"
+tagged = {t["objectid"]: t for t in read_csv(tags_path)} if tags_path.exists() else {}
+for r in rows + new_rows:
+    t = tagged.get(r["objectid"])
+    if t:
+        r.update({c: t[c] for c in ("tag_type", "tag_figures", "tag_dress", "tag_colour", "tag_themes")})
+        r["tag_source"] = t["source"]
 out_csv.parent.mkdir(parents=True, exist_ok=True)
 with open(out_csv, "w", encoding="utf-8-sig", newline="") as fh:
     w = csv.DictWriter(fh, fieldnames=COLUMNS, restval="")
@@ -258,4 +275,5 @@ print("dates                     :", date_tally, f"(document text read for {len(
 print("date precision            :", dict(Counter({4: "year", 7: "month", 10: "day", 0: "none"}[len(r["date"])] for r in objects)))
 left = [r["date_original"] for r in objects if r.get("date_original") and not r["date"]]
 print(f"recorded dates not usable : {len(left)}  {left[:6]}")
+print(f"objects with image tags  : {sum(1 for r in objects if r.get('tag_type') or r.get('tag_themes'))}")
 print("compound objects          :", sum(1 for r in rows + new_rows if r["display_template"] == "compound_object"))

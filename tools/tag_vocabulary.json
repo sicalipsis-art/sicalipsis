@@ -1,21 +1,19 @@
 {
-  "about": "Controlled vocabulary for image tags. Only these tags can ever be assigned. 'single' facets get exactly one tag per image; 'multi' facets get every tag that clears the threshold. Each tag is described to the model by 'yes' phrases, and multi tags also by 'no' phrases it is weighed against. Edit labels, phrases or thresholds here and re-run tools/tag_images.py.",
+  "about": "Controlled vocabulary for image tags. Only these tags can ever be assigned. A 'single' facet gets exactly one tag per image; a 'multi' facet gets between none and 'max' tags. The definitions are the instructions followed when labelling, by a person or by a model. Colour is measured from the pixels and is not labelled by hand. Change a label or definition here, correct the labels in data/tags/labels.csv, and re-run tools/tag_images.py.",
   "model": "google/siglip2-so400m-patch16-384",
-  "assign_threshold": 0.7,
-  "review_threshold": 0.55,
   "facets": [
     {
-      "name": "Type",
+      "name": "Image type",
       "column": "tag_type",
       "kind": "single",
       "tags": [
-        {"label": "Cover", "yes": ["the front cover of a novel with a printed title and an illustration", "a magazine cover with a masthead title", "a book cover with the title and the author's name"]},
-        {"label": "Photograph", "yes": ["a vintage photograph of a person", "an old studio photograph", "a photographic postcard from the early twentieth century"]},
-        {"label": "Illustration", "yes": ["a drawn illustration from an old book or magazine", "an art deco drawing of a figure", "a painted or engraved illustration plate"]},
-        {"label": "Caricature", "yes": ["a satirical caricature drawing", "a humorous cartoon with exaggerated figures", "a satirical watercolour cartoon"]},
-        {"label": "Press page", "yes": ["a page from an old magazine with columns of text and pictures", "a newspaper page with photographs and captions"]},
-        {"label": "Advertisement", "yes": ["a vintage printed advertisement for a product", "an old advertisement with a slogan and a price"]},
-        {"label": "Text page", "yes": ["a page of printed text only", "a title page of a book with only text"]}
+        {"label": "Cover", "definition": "Front cover of a book, novelette or magazine, with its printed title."},
+        {"label": "Photograph", "definition": "A photograph, including photographic postcards and photographs reproduced in print, shown on its own."},
+        {"label": "Illustration", "definition": "A drawing, painting or print that is not chiefly comic: plates and inside illustrations, vignettes, art prints."},
+        {"label": "Caricature", "definition": "A comic or satirical drawing or cartoon, with or without a caption."},
+        {"label": "Press page", "definition": "A page from a magazine or newspaper that mixes text with pictures."},
+        {"label": "Advertisement", "definition": "A printed advertisement for a product, service or publication."},
+        {"label": "Text page", "definition": "A page of text only, such as a title page, with no picture or only a small ornament."}
       ]
     },
     {
@@ -23,35 +21,45 @@
       "column": "tag_figures",
       "kind": "single",
       "tags": [
-        {"label": "One woman", "yes": ["a picture of one woman alone", "a single female figure"]},
-        {"label": "One man", "yes": ["a picture of one man alone", "a single male figure"]},
-        {"label": "Couple", "yes": ["a picture of a man and a woman together", "a couple, one man and one woman"]},
-        {"label": "Women together", "yes": ["a picture of two or more women together and no men", "a group of women"]},
-        {"label": "Mixed group", "yes": ["a picture of a group of several men and women", "a crowd of people"]},
-        {"label": "No figure", "yes": ["a picture with no people in it", "only text, objects or scenery, without any person"]}
+        {"label": "One woman", "definition": "A single female figure."},
+        {"label": "One man", "definition": "A single male figure."},
+        {"label": "Couple", "definition": "One man and one woman."},
+        {"label": "Women together", "definition": "Two or more women and no men."},
+        {"label": "Group", "definition": "Any other combination of several people, including two men or a crowd."},
+        {"label": "No figure", "definition": "No person is shown."}
       ]
     },
     {
-      "name": "Depicts",
-      "column": "tag_depicts",
-      "kind": "multi",
+      "name": "Dress",
+      "column": "tag_dress",
+      "kind": "single",
       "tags": [
-        {"label": "Nude", "yes": ["a fully nude person", "a naked figure"], "no": ["a fully clothed person", "a person wearing clothes"]},
-        {"label": "Semi-nude", "yes": ["a partly undressed person with bare breasts or bare torso", "a half-naked figure"], "no": ["a fully clothed person", "a completely naked person"]},
-        {"label": "Lingerie or undress", "yes": ["a woman in lingerie, a corset, stockings or a negligee", "a person in underwear"], "no": ["a person in outdoor clothes", "a person in a dress or suit"]},
-        {"label": "Fashion or costume", "yes": ["a person in elegant fashionable clothes, a hat or an evening dress", "a person in a theatrical costume"], "no": ["a naked person", "a picture without people"]},
-        {"label": "Portrait", "yes": ["a head and shoulders portrait of a face", "a close-up portrait"], "no": ["a full-length figure", "a scene with several people", "a picture without people"]},
-        {"label": "Dance or performance", "yes": ["a dancer performing on stage", "a cabaret or variety performer posing in costume"], "no": ["a person sitting or lying at rest", "a picture without people"]},
-        {"label": "Bathing or beach", "yes": ["a bather in a swimsuit at the beach", "a person bathing in water"], "no": ["a person indoors", "a picture without water"]},
-        {"label": "Bedroom or boudoir", "yes": ["a person on a bed or couch in a bedroom", "a boudoir interior with a bed, cushions or a dressing table"], "no": ["an outdoor scene", "a plain background with no furniture"]},
-        {"label": "Outdoors", "yes": ["an outdoor scene in nature, a garden or a street", "people outside in the open air"], "no": ["an indoor scene", "a plain studio background"]},
-        {"label": "Kiss or embrace", "yes": ["two people kissing", "two people embracing each other"], "no": ["a person alone", "people standing apart"]},
-        {"label": "Sexual act", "yes": ["an explicit depiction of people having sex", "explicit pornographic imagery of a sexual act"], "no": ["a person posing alone", "people who are not touching", "a picture without people"]},
-        {"label": "Humour or satire", "yes": ["a humorous or satirical picture making fun of someone", "a comic scene"], "no": ["a serious portrait", "a plain photograph of a person posing"]},
-        {"label": "Myth or exotic fantasy", "yes": ["a mythological, allegorical or orientalist fantasy scene", "a figure as a goddess, nymph, odalisque or devil"], "no": ["an everyday modern scene", "a plain portrait"]},
-        {"label": "Smoking", "yes": ["a person smoking a cigarette", "a person holding a cigarette or cigarette holder"], "no": ["a person who is not smoking"]},
-        {"label": "Sport or exercise", "yes": ["people doing gymnastics, sport or exercise", "an athlete"], "no": ["a person at rest", "a picture without people"]},
-        {"label": "Medical or scientific", "yes": ["a medical or anatomical diagram", "a scientific illustration with labels"], "no": ["an artistic picture of a person", "a photograph of a person posing"]}
+        {"label": "Nude", "definition": "The main figure, or the least dressed figure, is fully naked or wears only shoes, stockings or jewellery."},
+        {"label": "Semi-nude", "definition": "Partly dressed with breasts, buttocks or genitals uncovered."},
+        {"label": "Lingerie or swimwear", "definition": "In underwear, corset, negligee, nightdress or swimsuit, with nothing uncovered."},
+        {"label": "Clothed", "definition": "Every figure is dressed in day, evening or stage clothes."},
+        {"label": "No figure", "definition": "No person is shown."}
+      ]
+    },
+    {
+      "name": "Themes",
+      "column": "tag_themes",
+      "kind": "multi",
+      "max": 3,
+      "tags": [
+        {"label": "Portrait", "definition": "Head and shoulders, or bust, of one sitter."},
+        {"label": "Performance", "definition": "Dance, cabaret, theatre, circus or music: a performer on stage or posing in stage costume."},
+        {"label": "Bathing or beach", "definition": "Bathing, the beach, the bath or washing."},
+        {"label": "Bedroom or boudoir", "definition": "A bed, couch, dressing table or other private interior is part of the scene."},
+        {"label": "Outdoors", "definition": "Set in a garden, the countryside, a street or other open-air place."},
+        {"label": "Kiss or embrace", "definition": "Two figures kissing, embracing or caressing."},
+        {"label": "Sexual act", "definition": "An explicit sexual act is shown."},
+        {"label": "Humour or satire", "definition": "The picture is meant to be funny or to mock someone."},
+        {"label": "Myth or fantasy", "definition": "Mythological, allegorical, religious, orientalist or supernatural subject: nymphs, devils, odalisques and the like."},
+        {"label": "Smoking", "definition": "A figure smokes or holds a cigarette, cigar or pipe."},
+        {"label": "Sport or exercise", "definition": "Sport, gymnastics, dancing for exercise or physical culture."},
+        {"label": "Medical or scientific", "definition": "Anatomical, medical or scientific picture or diagram."},
+        {"label": "Fashion", "definition": "Fashionable dress, hats or hairstyle are the point of the picture."}
       ]
     }
   ]

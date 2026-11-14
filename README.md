@@ -167,8 +167,10 @@ Run the steps in order from the repository root. Every script can be re-run.
    python tools/publish_from_r2.py ../data ../work <public bucket address>
    ```
 
-   The 104 Omeka-only files, unconfirmed title matches and the novelette page
-   images are not published. (`tools/make_iiif.py` does the same work for a
+   Files that exist only on the Omeka server (and were not recovered from the
+   Internet Archive), unconfirmed title matches and the novelette page images
+   are not published. Omeka files recovered from the Internet Archive are in
+   `originals-omeka/` and are published like the rest. (`tools/make_iiif.py` does the same work for a
    hand-picked rows file and a local folder of originals; the pilot used it.)
 
 7. **Regenerate the site's data-driven pages, then build.**
@@ -189,21 +191,62 @@ Run the steps in order from the repository root. Every script can be re-run.
 9. **Mirror the data folder to the bucket** (see above), then commit and push the
    regenerated pages.
 
-## Image tags (in progress)
+## Image tags
 
-`tools/tag_images.py` assigns tags from the fixed vocabulary in
-`tools/tag_vocabulary.json`, using the SigLIP 2 model. On a first test of 24
-images it chose the right image type for 23, but over-assigned the "depicts"
-tags, so its output is not on the site yet. Hand-checked labels are being
-collected in `../data/tags/seed_labels.csv` to train and measure it.
+Pictures in the Image Gallery carry tags from a fixed vocabulary
+(`tools/tag_vocabulary.json`): one **Image type**, one **Figures** tag, one
+**Dress** tag, up to three **Themes**, and **Colour**. They appear in each
+item's metadata and as search filters.
+
+- `../data/tags/labels.csv` holds the labels. The first set was made by an AI
+  model (Claude) looking at contact sheets and following the definitions in the
+  vocabulary; rows it was unsure of are marked, with a note. **These labels
+  have not yet been reviewed by the project team.** Correct them in this file
+  and put a name in the `reviewed` column.
+- `tools/contact_sheets.py` makes the numbered contact sheets used for
+  labelling and review.
+- `tools/tag_images.py` turns every picture into an embedding with the SigLIP 2
+  model and trains a small classifier per facet on the labels. It reports how
+  often the classifier agrees with labels it was not shown
+  (`../data/tags/accuracy.csv`), lists in the `check` column of
+  `../data/tags/image_tags.csv` the labels it confidently disagrees with, and
+  tags pictures that have no label yet. Colour is measured from the pixels.
+- `tools/build_master.py` copies the tags into the master spreadsheet
+  (`tag_*` columns); `tools/refresh_manifests.py` then writes them into the
+  published manifests.
+
+```sh
+rclone copy r2:sicalipsis-files/web/images ../work/tags/thumbs --include "*/thumb.jpg"   # or only the gallery's
+python tools/contact_sheets.py ../work/tags/thumbs ../work/tags/sheets
+python tools/tag_images.py ../data ../work/tags/thumbs
+```
+
+A row in `labels.csv` with every tag left empty means "do not tag this
+picture"; one item is held back this way for the team to decide on.
 
 ## Known gaps in the data
 
-- 569 Omeka items have no date; 39 have ranges such as "1924/1999" that were
-  left unparsed.
+- **Files still only on the Omeka server.** 23 files have no copy in Box or in
+  the Internet Archive, and 15 more have only an unconfirmed title match in
+  Box. They can be fetched once the Omeka server is reachable again
+  (`tools/fetch_omeka_files.py`).
+- **Files that were already damaged on Omeka.** Eight PDFs were cut short when
+  they were uploaded to Omeka (`../data/reconciliation/damaged_on_omeka.csv`):
+  seven novelettes and one issue of Pentalfa. The pages that survive are
+  published and each item carries a note; complete copies would have to come
+  from the original scans.
+- **Dates.** About 400 objects have no date yet; estimated dates are marked as
+  such (`date_certainty`).
+- **Image tags** were made by an AI model and have not been reviewed (see
+  above).
 - 278 of the 2,648 novelette page images are not yet attached to a novelette.
 - The URL columns of the master spreadsheet (`object_location`, `image_small`,
-  `image_thumb`) are empty until the bucket has a public address; `r2_key` says
-  where each file is in the bucket.
+  `image_thumb`) are empty; `r2_key` says where each file is in the bucket.
 - The home page's featured works and the section cover images are chosen
   automatically and should be picked by the project team.
+
+## Build speed
+
+Canopy fetches the manifests one at a time (`CANOPY_FETCH_CONCURRENCY: "1"` in
+the deploy workflow). Leave it at 1: with a higher number its manifest cache
+loses entries and the build becomes slower, not faster.

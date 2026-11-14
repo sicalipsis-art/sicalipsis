@@ -44,6 +44,8 @@ for r in read_csv(master_csv):
 # The home page rotates through these. Magazine covers are the default; the
 # project team should choose the final set.
 featured = [r for r in rows if r["section"] in ("Erotic Magazines", "Nudism & Naturism")][:6]
+# Image tags become search filters once any published picture has them.
+tag_facets = ["Image type", "Figures", "Dress", "Themes", "Colour"] if any(r.get("tag_type") for r in rows) else []
 canopy_yml = f"""title: Sicalipsis
 collection:
   - {base}/iiif/collection.json
@@ -54,7 +56,7 @@ metadata:
   - Creator
   - Year
   - Type
-featured:
+{''.join(f'  - {name}' + chr(10) for name in tag_facets)}featured:
 {''.join(f'  - {manifest(r)}' + chr(10) for r in featured)}search:
   page:
     title: Search

@@ -2,3 +2,8 @@
 Pillow
 PyMuPDF
 openpyxl
+# tag_images.py only (PyTorch: install the build for your computer from pytorch.org)
+numpy
+scikit-learn
+torch
+transformers
