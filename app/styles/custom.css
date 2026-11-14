@@ -1537,3 +1537,8 @@ body.canopy-type-work main dt {
   font-size: 0.85rem;
   opacity: 0.7;
 }
+
+.sic-related__row li::marker,
+.sic-tsearch li::marker {
+  content: "";
+}
