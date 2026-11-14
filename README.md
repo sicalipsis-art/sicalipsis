@@ -26,6 +26,8 @@ when it is built.
   - open any item in a page-turning viewer, read its text where OCR has been
     done, and see items that look like it or read like it;
   - search the catalogue (**Search**) or the words on the pages (**Texts**);
+  - explore the collection as a network of items that look alike and read alike
+    (**Network**);
   - walk through the collection as a building (**Gallery walk**).
 - Images and manifests are served from the bucket's public development address,
   `https://pub-86bc04aba3b948f081b236797ce9d2a6.r2.dev/web`. Cloudflare
@@ -54,6 +56,7 @@ when it is built.
 | `app/components/ItemText.client.tsx` | "Read the text" on item pages: the OCR text, page by page. |
 | `app/components/RelatedByContent.client.tsx` | "Looks like" and "Reads like" on item pages. |
 | `app/components/TextSearch.client.tsx` | The Texts page: search inside the words on the pages. |
+| `app/components/ContentMap.client.tsx` | The Network page: every item as a point, placed by visual similarity, with its "looks like" and "reads like" links. |
 | `app/components/GalleryWalk.client.tsx` | The walk-through gallery (three.js): a building the visitor enters from a forecourt. Its entrance hall is the map: each section of the collection is a gallery, shown on the hall's walls by three of its own works, and a click on one goes in. Inside a gallery the works hang in a few large rooms by series or author and then by date. The visitor roams freely (drag or mouse look, keys or a click on the floor to walk), can open a map of the building at any time, and can look at any work up close in a viewer inside the gallery (zoom, pages). A list view is the accessible alternative. Reads `web/walk/works.json` from the bucket. |
 | `app/data/gallery_periods.json` | Gallery settings: the order of the galleries and how many works a room holds. |
 | `app/data/sections.json` | Section cards for the home page. Generated. |
@@ -239,7 +242,8 @@ Run the steps in order from the repository root. Every script can be re-run.
 10. **Refresh "Looks like" and "Reads like".** Compares every object's first
     page image (SigLIP 2 embeddings) and every object's text (word weights),
     and writes each object's nearest neighbours to `web/related/related.json`
-    in the bucket, which the item pages read without a new build.
+    and the layout of the Network page to `web/related/map.json` in the bucket;
+    the item pages and the Network page read them without a new build.
 
     ```sh
     python tools/make_related.py ../data ../work <public bucket address>

@@ -105,6 +105,18 @@ def main():
     reads = nearest(reduced, text_ids, series)
     print(f"reads like: {len(text_ids)} objects with enough text compared", flush=True)
 
+    # ----- a map: every object placed so that objects that look alike sit near each other -----
+    from sklearn.manifold import TSNE
+    flat = TSNE(n_components=2, perplexity=30, init="pca", random_state=0).fit_transform(np.stack([store[i] for i in ids]))
+    flat = (flat - flat.min(axis=0)) / (flat.max(axis=0) - flat.min(axis=0))
+    sections = sorted({r["section"] for r in rows})
+    section_of = {r["objectid"]: sections.index(r["section"]) for r in rows}
+    chart = {"sections": sections,
+             "items": [[oid, round(float(x), 4), round(float(y), 4), section_of[oid]] for oid, (x, y) in zip(ids, flat)]}
+    (work / "web" / "related").mkdir(parents=True, exist_ok=True)
+    (work / "web" / "related" / "map.json").write_text(json.dumps(chart, ensure_ascii=False, separators=(",", ":")),
+                                                         encoding="utf-8")
+
     related = {r["objectid"]: {"looks": looks.get(r["objectid"], []), "reads": reads.get(r["objectid"], [])}
                for r in rows}
     out = work / "web" / "related" / "related.json"
@@ -112,7 +124,7 @@ def main():
     out.write_text(json.dumps(related, ensure_ascii=False), encoding="utf-8")
     print(f"{len(related)} objects -> {out} ({out.stat().st_size // 1024} KB)")
     if "--no-upload" not in sys.argv:
-        result = subprocess.run(["rclone", "copyto", str(out), f"{BUCKET}/web/related/related.json"],
+        result = subprocess.run(["rclone", "copy", str(out.parent), f"{BUCKET}/web/related"],
                                 capture_output=True, text=True)
         print("uploaded to the bucket" if result.returncode == 0 else f"upload failed: {result.stderr[-200:]}")
 

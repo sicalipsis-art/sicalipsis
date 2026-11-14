@@ -13,5 +13,6 @@ export const clientComponents = {
   ItemText: "./ItemText.client.tsx",
   RelatedByContent: "./RelatedByContent.client.tsx",
   TextSearch: "./TextSearch.client.tsx",
+  ContentMap: "./ContentMap.client.tsx",
   CollectionSearch: "./CollectionSearch.client.tsx",
 };

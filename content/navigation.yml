@@ -7,5 +7,7 @@ navigation:
     label: Search
   - href: /texts
     label: Texts
+  - href: /network
+    label: Network
   - href: /about
     label: About
