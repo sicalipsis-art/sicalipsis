@@ -16,8 +16,8 @@ published so far, and <data_dir>/published/rows.csv is written for
 make_site_content.py. Run it again whenever more originals have arrived; work
 already done is skipped.
 
-Not published: the 104 files that exist only on the Omeka server, title matches
-still marked unconfirmed, and the novelette page images (their pages are already
+Not published: files that exist only on the Omeka server and were not recovered
+from the Internet Archive, title matches still marked unconfirmed, and the novelette page images (their pages are already
 inside the novelette's own PDF).
 """
 import csv
@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from make_iiif import render, write_collection, write_manifest  # noqa: E402
 
 BUCKET = "r2:sicalipsis-files"
-READY = {"in Box (identical)", "in Box (OCR version)", "in Box (not in Omeka)"}
+READY = {"in Box (identical)", "in Box (OCR version)", "in Box (not in Omeka)", "rescued from the Internet Archive"}
 
 
 NETWORK = ("no such host", "dial tcp", "request send failed", "connection reset", "timeout", "i/o timeout",
@@ -63,8 +63,10 @@ def main():
 
     with open(data / "master" / "sicalipsis.csv", encoding="utf-8-sig", newline="") as fh:
         rows = list(csv.DictReader(fh))
-    in_bucket = {"originals/" + f["Path"]: f["Size"] for f in
-                 json.loads(rclone("lsjson", "-R", "--files-only", f"{BUCKET}/originals", capture=True))}
+    in_bucket = {}
+    for prefix in ("originals", "originals-omeka"):   # the Box copy, and Omeka's files recovered from the Internet Archive
+        for f in json.loads(rclone("lsjson", "-R", "--files-only", f"{BUCKET}/{prefix}", capture=True)):
+            in_bucket[f"{prefix}/{f['Path']}"] = f["Size"]
     live = {p.split("/")[0] for p in
             rclone("lsf", "-R", "--files-only", "--include", "manifest.json", f"{BUCKET}/web/iiif",
                    capture=True).splitlines()}

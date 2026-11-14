@@ -156,8 +156,10 @@ def main():
     published = json.loads((pub / "published.json").read_text(encoding="utf-8"))
     with open(data / "master" / "sicalipsis.csv", encoding="utf-8-sig", newline="") as fh:
         rows = {r["objectid"]: r for r in csv.DictReader(fh)}
-    in_bucket = {"originals/" + f["Path"] for f in
-                 json.loads(rclone("lsjson", "-R", "--files-only", f"{BUCKET}/originals", capture=True))}
+    in_bucket = set()
+    for prefix in ("originals", "originals-omeka"):
+        for f in json.loads(rclone("lsjson", "-R", "--files-only", f"{BUCKET}/{prefix}", capture=True)):
+            in_bucket.add(f"{prefix}/{f['Path']}")
     todo = [rows[k] for k in published
             if k in rows and rows[k]["format"] == "application/pdf" and k not in state
             and rows[k]["r2_key"] in in_bucket  # the original may still be on its way to the bucket

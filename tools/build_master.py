@@ -96,6 +96,9 @@ for b in box_files:
         for item_id in b["omeka_item_ids"].split(" | "):
             identical.setdefault(item_id, b["box_path"])
 titled = {m["omeka_item_id"]: m for m in read_csv(rec / "title_matches.csv")}
+# Omeka's own files recovered from the Internet Archive and verified in the bucket.
+rescued_path = rec / "rescued_in_bucket.csv"
+rescued = {r["stored_name"]: r for r in read_csv(rescued_path)} if rescued_path.exists() else {}
 
 rows, object_of_box = [], {}
 for it in sorted(items, key=lambda r: int(r["item_id"])):
@@ -113,6 +116,11 @@ for it in sorted(items, key=lambda r: int(r["item_id"])):
         status = "only on Omeka server"
     if box_path:
         object_of_box[box_path] = objectid
+    saved = rescued.get(f["stored_name"]) if f else None
+    rescued_key = ""
+    if saved and status in ("only on Omeka server", "in Box (OCR version, unconfirmed)"):
+        # Use Omeka's own file: it is certain to belong to this record.
+        box_path, status, rescued_key = "", "rescued from the Internet Archive", saved["r2_key"]
     box = box_by_path.get(box_path)
     collection = clean(it["collection_title"])
     section = SECTION_OF_COLLECTION.get(collection) or (ESSAYS if collection else "")
@@ -139,7 +147,7 @@ for it in sorted(items, key=lambda r: int(r["item_id"])):
         "section": section, "series": nfc(box["series"]) if box and box["series"] else collection,
         "collection": collection,
         "display_template": {"pdf": "pdf", "jpg": "image"}.get(ext, "record"),
-        "file_status": status, "r2_key": f"originals/{box_path}" if box_path else "",
+        "file_status": status, "r2_key": rescued_key or (f"originals/{box_path}" if box_path else ""),
         "box_path": box_path, "omeka_item_id": iid, "omeka_url": it["url"],
         "file_md5": box["md5"] if box else (f["omeka_md5"] if f else ""),
     })
