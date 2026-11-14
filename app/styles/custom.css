@@ -1542,3 +1542,98 @@ body.canopy-type-work main dt {
 .sic-tsearch li::marker {
   content: "";
 }
+
+/* Gallery on phones */
+.sic-walk__enter {
+  z-index: 4;                      /* above the controls, so a tap anywhere enters */
+}
+
+.sic-walk__scrub {
+  pointer-events: none;            /* only the buttons take taps; between them the scene does */
+}
+
+.sic-walk__scrub > * {
+  pointer-events: auto;
+}
+
+.sic-walk__bar label {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sic-walk__bar select {
+  min-width: 0;
+  max-width: min(22rem, 100%);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .sic-walk__tools button:nth-child(2) {     /* mouse look needs a mouse */
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .sic-walk__bar label {
+    flex: 1 1 100%;
+  }
+  .sic-walk__bar select {
+    flex: 1 1 auto;
+    max-width: 100%;
+  }
+  .sic-walk__tools {
+    top: 0.5rem;
+    right: 0.5rem;
+  }
+  .sic-walk__tools .sic-walk__full {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.7rem;
+  }
+  .sic-walk__where {
+    top: 3rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    max-width: none;
+  }
+  .sic-walk__where strong {
+    font-size: 1.25rem;
+  }
+  .sic-walk__scrub {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    gap: 0.35rem;
+    justify-content: center;
+  }
+  .sic-walk__scrub button {
+    padding: 0.35rem 0.55rem;
+    font-size: 0.68rem;
+  }
+  .sic-walk__panel {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 6.5rem;
+    width: auto;
+    max-width: none;
+  }
+  .sic-viewer__bar {
+    padding: 0.4rem 0.5rem;
+  }
+  .sic-viewer__title strong {
+    font-size: 0.95rem;
+  }
+  .sic-viewer__tools button,
+  .sic-viewer__tools a {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.7rem;
+  }
+  .sic-map {
+    padding: 0.75rem;
+  }
+  .sic-net__panel {
+    top: auto;
+    left: 0.5rem;
+    right: 0.5rem;
+    width: auto;
+    max-height: 55%;
+  }
+}

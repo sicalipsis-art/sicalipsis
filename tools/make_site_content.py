@@ -67,7 +67,7 @@ metadata:
   - Creator
   - Year
   - Type
-{''.join(f'  - {name}' + chr(10) for name in tag_facets)}featured:
+{''.join(f'  - {name}' + chr(10) for name in tag_facets)}{'  - Text' + chr(10) if any(r.get('text') for r in rows) else ''}featured:
 {''.join(f'  - {manifest(r)}' + chr(10) for r in featured)}search:
   page:
     title: Search

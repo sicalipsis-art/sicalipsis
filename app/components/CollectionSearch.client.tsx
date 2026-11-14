@@ -14,7 +14,7 @@ type Value = {value: string; slug: string; docs: number[]};
 type Facet = {label: string; slug: string; values: Value[]};
 
 // Facets offered as tags, in this order. Creator is left to the keyword box: it has hundreds of values.
-const TAG_FACETS = ["themes", "image-type", "figures", "dress", "colour", "subject", "series"];
+const TAG_FACETS = ["themes", "image-type", "figures", "dress", "colour", "subject", "series", "text"];
 const MANY = 14;       // a group with more values than this starts folded
 
 export default function CollectionSearch({section = ""}: {section?: string}) {
@@ -46,6 +46,7 @@ export default function CollectionSearch({section = ""}: {section?: string}) {
       .filter((v) => v.docs.length > 0)
       .sort((a, b) => b.docs.length - a.docs.length || a.value.localeCompare(b.value));
     if (values.length < 2 && slug === "series") return null;     // a single series says nothing
+    if (slug === "text") return values.length ? {label: "Text", slug, values} : null;
     return values.length ? {label: facet.label, slug, values} : null;
   }).filter(Boolean) as Facet[], [facets, within]);
 

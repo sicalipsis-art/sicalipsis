@@ -278,6 +278,8 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
   const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{x: number; y: number} | null>(null);
   const limit = useRef(MAX_ZOOM);          // set when the picture loads, from its real size
+  const fingers = useRef(new Map<number, {x: number; y: number}>());      // touch points on the picture
+  const pinch = useRef<{spread: number; zoom: number} | null>(null);
   const src = work.image.replace(/0001\.jpg$/, `${String(page).padStart(4, "0")}.jpg`);
   const go = (n: number) => { setPage(Math.max(1, Math.min(work.pages, n))); setView({zoom: 1, x: 0, y: 0}); setReady(false); };
   const zoomBy = (factor: number, cx = 0, cy = 0) => setView((v) => {
@@ -346,14 +348,30 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
           if (view.zoom >= limit.current * 0.98) setView({zoom: 1, x: 0, y: 0});
           else zoomBy(2, e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
         }}
-        onPointerDown={(e) => { drag.current = {x: e.clientX, y: e.clientY}; e.currentTarget.setPointerCapture(e.pointerId); }}
+        onPointerDown={(e) => {
+          fingers.current.set(e.pointerId, {x: e.clientX, y: e.clientY});
+          e.currentTarget.setPointerCapture(e.pointerId);
+          if (fingers.current.size === 2) {              // two fingers: pinch to zoom
+            const [a, b] = Array.from(fingers.current.values());
+            pinch.current = {spread: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: view.zoom};
+            drag.current = null;
+          } else drag.current = {x: e.clientX, y: e.clientY};
+        }}
         onPointerMove={(e) => {
+          if (fingers.current.has(e.pointerId)) fingers.current.set(e.pointerId, {x: e.clientX, y: e.clientY});
+          if (pinch.current && fingers.current.size === 2) {
+            const [a, b] = Array.from(fingers.current.values());
+            const zoom = Math.max(1, Math.min(limit.current, pinch.current.zoom * Math.hypot(a.x - b.x, a.y - b.y) / pinch.current.spread));
+            setView((v) => (zoom === 1 ? {zoom: 1, x: 0, y: 0} : {zoom, x: v.x * zoom / v.zoom, y: v.y * zoom / v.zoom}));
+            return;
+          }
           if (!drag.current || view.zoom <= 1) return;
           const dx = e.clientX - drag.current.x, dy = e.clientY - drag.current.y;
           drag.current = {x: e.clientX, y: e.clientY};
           setView((v) => ({...v, x: v.x + dx, y: v.y + dy}));
         }}
-        onPointerUp={() => { drag.current = null; }}>
+        onPointerUp={(e) => { fingers.current.delete(e.pointerId); pinch.current = null; drag.current = null; }}
+        onPointerCancel={(e) => { fingers.current.delete(e.pointerId); pinch.current = null; drag.current = null; }}>
         <button type="button" className="sic-viewer__x" aria-label="Close and return to the room" title="Close"
           onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()} onClick={onClose}>
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
@@ -1070,7 +1088,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
           {!entered && !viewing && (
             <button type="button" className="sic-walk__enter" onClick={refocus}>
               <strong>Enter the building</strong>
-              <span>Drag to look around, or switch on mouse look. Walk with W A S D or the arrow keys, or click the floor to go there. In the entrance hall, click a picture to go into its gallery; the map takes you anywhere. Click a work for its label, and again to see it up close.</span>
+              <span>Drag to look around. Walk with the arrow buttons or the keys W A S D, or click or tap the floor to go there. In the entrance hall, choose a picture to go into its gallery; the map takes you anywhere. Choose a work for its label, and again to see it up close.</span>
             </button>
           )}
           {selected && !viewing && (

@@ -40,7 +40,7 @@ FIELDS = [
     # image tags (tools/tag_images.py); only pictures in the Image Gallery have them
     ("Image type", "tag_type", False), ("Figures", "tag_figures", False), ("Dress", "tag_dress", False),
     ("Colour", "tag_colour", False), ("Themes", "tag_themes", True),
-    ("Inscription", "inscription", False), ("Note", "file_note", False),
+    ("Inscription", "inscription", False), ("Text", "text", False), ("Note", "file_note", False),
 ]
 
 
