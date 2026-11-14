@@ -188,7 +188,17 @@ Run the steps in order from the repository root. Every script can be re-run.
    python tools/make_walk.py ../data ../work <public bucket address>
    ```
 
-9. **Mirror the data folder to the bucket** (see above), then commit and push the
+9. **Attach OCR text to the items.** After OCR (`tools/ocr_from_r2.py`, see
+   `tools/requirements-ocr.txt`) has read more documents, this writes one IIIF
+   annotation page per page image (each line of text pointing at its place on
+   the page) and links them, and the plain text file, from the manifest. Item
+   pages then show a "Read the text" section. Objects already done are skipped.
+
+   ```sh
+   python tools/make_annotations.py ../data ../work <public bucket address>
+   ```
+
+10. **Mirror the data folder to the bucket** (see above), then commit and push the
    regenerated pages.
 
 ## The original site's arrangement

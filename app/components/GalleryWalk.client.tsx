@@ -792,7 +792,11 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
     let drag: {x: number; y: number} | null = null;
     let moved = 0;
     let locked = false;                               // mouse look: the pointer is held and moving the mouse turns the view
-    const onLock = () => { locked = document.pointerLockElement === el; setLook(locked); if (locked) { drag = null; setEntered(true); } };
+    const onLock = () => {
+      locked = document.pointerLockElement === el;
+      setLook(locked);
+      if (locked) { drag = null; setEntered(true); el.focus(); }     // keys go to the gallery, so walking and looking work together
+    };
     const onMouse = (e: MouseEvent) => {
       if (!locked || viewingRef.current) return;
       if (auto && auto.face) auto.face = null;
@@ -910,13 +914,16 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
         if (dist > 0.02) {
           pos.x += (dx / dist) * step;
           pos.z += (dz / dist) * step;
-          if (!auto.face || !final || dist > 1.8) { const t = turnTo(yaw, heading(dx, dz)); yaw += (t - yaw) * (calm ? 1 : Math.min(1, dt * 7)); }
+          // While the visitor is looking around for themselves (mouse look, or dragging), the walk does not turn their head.
+          if (!locked && !drag && (!auto.face || !final || dist > 1.8)) { const t = turnTo(yaw, heading(dx, dz)); yaw += (t - yaw) * (calm ? 1 : Math.min(1, dt * 7)); }
         }
         if (dist <= 0.05 || step >= dist) {
           auto.points.shift();
           if (!auto.points.length) { if (!auto.face) auto = null; else auto.points.push({x: pos.x, z: pos.z}); }
         }
-        if (auto && auto.face && auto.points.length === 1) {   // near the end: turn to the work
+        if (auto && auto.face && auto.points.length === 1 && (locked || drag)) {
+          if (Math.hypot(goal.x - pos.x, goal.z - pos.z) < 0.06) auto = null;   // arrived; the visitor keeps their own view
+        } else if (auto && auto.face && auto.points.length === 1) {   // near the end: turn to the work
           const f = auto.face;
           const t = turnTo(yaw, heading(f.x - pos.x, f.z - pos.z));
           const tilt = Math.atan2(f.y - EYE, Math.hypot(f.x - pos.x, f.z - pos.z));

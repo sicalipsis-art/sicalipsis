@@ -10,5 +10,6 @@ export const components = {
 export const clientComponents = {
   GalleryWalk: "./GalleryWalk.client.tsx",
   ViewerZoom: "./ViewerZoom.client.tsx",
+  ItemText: "./ItemText.client.tsx",
   CollectionSearch: "./CollectionSearch.client.tsx",
 };

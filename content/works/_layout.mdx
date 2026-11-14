@@ -12,8 +12,14 @@ import {
 
 <Container variant="wide" className="canopy-work--layout">
   <div className="canopy-work--primary">
-    <Viewer iiifContent={props.manifest.id} />
+    <Viewer
+      iiifContent={props.manifest.id}
+      options={(props.manifest.items || []).some((canvas) => (canvas.annotations || []).length)
+        ? {informationPanel: {open: false, renderToggle: true, renderAbout: false}}
+        : {}}
+    />
     <ViewerZoom />
+    <ItemText src={((props.manifest.seeAlso || []).find((link) => link.format === "text/plain") || {}).id || ""} />
   </div>
   <div className="canopy-work--secondary">
     <header>

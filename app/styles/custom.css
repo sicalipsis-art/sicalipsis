@@ -1156,3 +1156,66 @@ body.canopy-type-work main dt {
   border-color: var(--color-accent-default);
   color: #17120a;
 }
+
+/* The text of an item, read by OCR, under the viewer */
+.sic-text {
+  margin-top: 1.25rem;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: rgb(255 255 255 / 0.03);
+}
+
+.sic-text__toggle {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.sic-text__toggle span {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  color: var(--color-accent-default);
+}
+
+.sic-text__toggle small {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.sic-text__body {
+  max-height: 34rem;
+  overflow: auto;
+  padding: 0 1rem 1rem;
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.sic-text__body h3 {
+  margin: 1.2rem 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent-default);
+}
+
+.sic-text__body pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-serif);
+  font-size: 0.98rem;
+  line-height: 1.55;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.sic-text__empty,
+.sic-text__file {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
