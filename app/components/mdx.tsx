@@ -8,4 +8,6 @@ export const components = {
 // Browser-only components, bundled separately and started in the browser.
 export const clientComponents = {
   GalleryWalk: "./GalleryWalk.client.tsx",
+  ViewerZoom: "./ViewerZoom.client.tsx",
+  CollectionSearch: "./CollectionSearch.client.tsx",
 };

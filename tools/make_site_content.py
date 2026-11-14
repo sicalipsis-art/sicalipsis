@@ -107,6 +107,8 @@ referencedManifests:
   <p className="sic-count">{shown}</p>
 </header>
 
+<CollectionSearch section="{name}" />
+
 <ReferencedItems />
 
 </Container>

@@ -220,6 +220,8 @@ const crosses = (a: Point, b: Point, r: Rect) => {        // does the straight l
 };
 const grow = (r: Rect, m: number): Rect => ({x0: r.x0 - m, x1: r.x1 + m, z0: r.z0 - m, z1: r.z1 + m});
 
+const MAX_ZOOM = 8;          // times the size at which the whole page fits
+
 /** The work itself, shown inside the gallery: zoom, pan, pages, full screen. */
 function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; onFull: () => void; onClose: () => void}) {
   const [page, setPage] = useState(1);
@@ -231,7 +233,7 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
   const src = work.image.replace(/0001\.jpg$/, `${String(page).padStart(4, "0")}.jpg`);
   const go = (n: number) => { setPage(Math.max(1, Math.min(work.pages, n))); setView({zoom: 1, x: 0, y: 0}); setReady(false); };
   const zoomBy = (factor: number, cx = 0, cy = 0) => setView((v) => {
-    const zoom = Math.max(1, Math.min(8, v.zoom * factor));
+    const zoom = Math.max(1, Math.min(MAX_ZOOM, v.zoom * factor));
     const k = zoom / v.zoom;
     return zoom === 1 ? {zoom: 1, x: 0, y: 0} : {zoom, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k};
   });
@@ -243,7 +245,7 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const r = el.getBoundingClientRect();
-      zoomBy(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
+      zoomBy(Math.exp(-e.deltaY * 0.003), e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
     };
     el.addEventListener("wheel", onWheel, {passive: false});
     return () => el.removeEventListener("wheel", onWheel);
@@ -282,7 +284,8 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
             </>
           )}
           <button type="button" onClick={() => zoomBy(1 / 1.4)} disabled={view.zoom <= 1} aria-label="Zoom out">−</button>
-          <button type="button" onClick={() => zoomBy(1.4)} aria-label="Zoom in">+</button>
+          <button type="button" onClick={() => zoomBy(1.4)} disabled={view.zoom >= MAX_ZOOM} aria-label="Zoom in">+</button>
+          <button type="button" onClick={() => setView({zoom: 1, x: 0, y: 0})} disabled={view.zoom <= 1}>Whole page</button>
           <button type="button" onClick={onFull} aria-pressed={full}>{full ? "Exit full screen" : "Full screen"}</button>
           {work.href && <a href={work.href}>Item page</a>}
           <button type="button" className="sic-viewer__close" onClick={onClose}>Close</button>
@@ -292,8 +295,8 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
         style={{cursor: view.zoom > 1 ? "grab" : "zoom-in"}}
         onDoubleClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
-          if (view.zoom > 1) setView({zoom: 1, x: 0, y: 0});
-          else zoomBy(2.5, e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
+          if (view.zoom >= MAX_ZOOM * 0.98) setView({zoom: 1, x: 0, y: 0});
+          else zoomBy(2, e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
         }}
         onPointerDown={(e) => { drag.current = {x: e.clientX, y: e.clientY}; e.currentTarget.setPointerCapture(e.pointerId); }}
         onPointerMove={(e) => {
@@ -303,6 +306,10 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
           setView((v) => ({...v, x: v.x + dx, y: v.y + dy}));
         }}
         onPointerUp={() => { drag.current = null; }}>
+        <button type="button" className="sic-viewer__x" aria-label="Close and return to the room" title="Close"
+          onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()} onClick={onClose}>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
+        </button>
         <img src={src} alt={work.pages > 1 ? `${work.title}, page ${page}` : work.title} draggable={false}
           onLoad={() => setReady(true)}
           style={{transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`, opacity: ready ? 1 : 0.35}} />
