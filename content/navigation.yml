@@ -11,3 +11,5 @@ navigation:
     label: Network
   - href: /about
     label: About
+  - href: /contact
+    label: Contact

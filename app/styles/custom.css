@@ -1637,3 +1637,14 @@ body.canopy-type-work main dt {
     max-height: 55%;
   }
 }
+
+.sic-contact {
+  max-width: 40rem;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin-bottom: 3rem;
+}
+
+.sic-contact a {
+  color: var(--color-accent-default);
+}
