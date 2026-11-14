@@ -1,13 +1,5 @@
 {
-  "about": "Periods for the walk-through gallery, in visiting order. Each period becomes a suite of rooms; within it, works are grouped by collection and series. The titles and year boundaries are working placeholders for the project team to rewrite: change them here and rebuild. Works without a date go to the period marked undated.",
-  "roomSize": 14,
-  "sections": ["Image Gallery", "Erotic Magazines", "Erotic Novelettes", "Essays on Sexuality, Sexology, and Eugenics", "Genetics, Eugenics & Sexual Pedagogy", "Nudism & Naturism"],
-  "periods": [
-    {"title": "Turn of the century", "from": 0, "to": 1913},
-    {"title": "War years and after", "from": 1914, "to": 1922},
-    {"title": "The Primo de Rivera years", "from": 1923, "to": 1930},
-    {"title": "Republic and Civil War", "from": 1931, "to": 1939},
-    {"title": "Later editions", "from": 1940, "to": 9999},
-    {"title": "Undated", "undated": true}
-  ]
+  "about": "Settings for the walk-through gallery. Each section of the collection is one gallery of the building, in the order given here; inside a gallery the works hang by series or author and then by date, in rooms of up to roomSize works.",
+  "roomSize": 40,
+  "sections": ["Image Gallery", "Erotic Magazines", "Erotic Novelettes", "Essays on Sexuality, Sexology, and Eugenics", "Genetics, Eugenics & Sexual Pedagogy", "Nudism & Naturism"]
 }

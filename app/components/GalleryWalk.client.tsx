@@ -7,13 +7,18 @@ import plan from "../data/gallery_periods.json";
  * Walk-through gallery: the published works staged as an exhibition that the
  * visitor is free to roam.
  *
- * The works are arranged by period (app/data/gallery_periods.json) and, within a
- * period, by collection and series. Each group is a room. Rooms differ: width
- * and ceiling height vary, each period has its own wall colour, and there are
+ * The visitor arrives in a forecourt, in front of the building, and enters an
+ * entrance hall. The hall is the map: each gallery (a section of the
+ * collection) is shown on its walls by three of its own works, and a click on
+ * one of them goes into that gallery. Inside a gallery the works hang in a few
+ * large rooms, by series or author and then by date. Rooms differ: width and
+ * ceiling height vary, each gallery has its own wall colour, and there are
  * three kinds of hang (see `kindOf`): a single line, a two-tier "salon" hang for
- * long runs, and a room divided by a freestanding wall.
+ * long runs, and a room divided by a freestanding wall. A map of the building
+ * can be opened at any time to go straight to a gallery or a room.
  *
- * Moving: drag to look around; W A S D or the arrow keys to walk and turn; the
+ * Moving: drag to look around, or switch on mouse look and simply move the
+ * mouse; W A S D or the arrow keys to walk and turn; the
  * wheel walks forward and back; a click on the floor walks there; a click on a
  * work walks up to it and shows its label. "Open" (or a second click on the
  * work) shows it in a viewer inside the gallery: zoom, pages, full screen.
@@ -35,12 +40,16 @@ import plan from "../data/gallery_periods.json";
 type Work = {
   id: string; title: string; creator: string; date: string; year: string; estimated?: boolean;
   section: string; series: string; thumb: string; image: string; w: number; h: number; pages: number;
+  group?: string; gorder?: number;
   href?: string;
 };
-type Room = {period: string; tone: number; title: string; subtitle: string; works: Work[]};
-type Place = {work: Work; room: number; x: number; y: number; z: number; facing: number; nx: number; nz: number; width: number; height: number; small: boolean};
+/** A gallery as the entrance hall and the map show it: its name and three of its works. */
+type Portal = {title: string; count: number; rooms: number; to: number; works: Work[]};
+type Room = {period: string; tone: number; title: string; subtitle: string; works: Work[]; kind?: "court" | "hall"; portals?: Portal[]};
+type Place = {work: Work; room: number; x: number; y: number; z: number; facing: number; nx: number; nz: number; width: number; height: number; small: boolean; to?: number};
+type Mark = {x: number; z: number; nx: number; title: string; note: string};
 type Rect = {x0: number; x1: number; z0: number; z1: number};
-type Shell = {index: number; z: number; depth: number; half: number; height: number; entry: number; exit: number; kind: string; tone: number; blocks: Rect[]; divider: Rect | null; titleX: number};
+type Shell = {index: number; z: number; depth: number; half: number; height: number; entry: number; exit: number; kind: string; tone: number; blocks: Rect[]; divider: Rect | null; titleX: number; marks: Mark[]};
 type Point = {x: number; z: number};
 
 const EYE = 1.62;
@@ -52,38 +61,52 @@ const STAND = 3.0;            // viewing distance from a wall
 const BODY = 0.5;             // how close the visitor can get to a wall
 const WALK = 4.2;             // metres per second
 const NEAR_LOAD = 30;
-const NEAR_SHARP = 6.5;
+const NEAR_SHARP = 10;
 const FAR_DROP = 46;
-const WALLS = ["#3b332d", "#2f3833", "#3a2e36", "#2d3440", "#40372a", "#333130"];   // one wall colour per period
+const WALLS = ["#3b332d", "#2f3833", "#3a2e36", "#2d3440", "#40372a", "#33302f", "#4a443d"];   // one wall colour per gallery; the last is the entrance hall's
 
 function makeRooms(works: Work[]): Room[] {
-  const rooms: Room[] = [];
   const size = plan.roomSize;
-  (plan.periods as any[]).forEach((period, tone) => {
-    const inPeriod = works.filter((w) => (period.undated ? !w.year : w.year && +w.year >= period.from && +w.year <= period.to));
-    const sections = [...plan.sections, ...Array.from(new Set(inPeriod.map((w) => w.section))).filter((s) => !plan.sections.includes(s))];
-    for (const section of sections) {
-      const group = inPeriod.filter((w) => w.section === section);
-      let batch: Work[] = [];
-      const flush = () => {
-        if (!batch.length) return;
-        const series = Array.from(new Set(batch.map((w) => w.series).filter(Boolean)));
-        const years = batch.map((w) => w.year).filter(Boolean).sort();
-        const span = years.length ? (years[0] === years[years.length - 1] ? years[0] : `${years[0]} to ${years[years.length - 1]}`) : "";
-        const single = series.length === 1 && series[0].toLowerCase() !== section.toLowerCase();
-        rooms.push({period: period.title, tone, title: section, subtitle: [single ? series[0] : "", span].filter(Boolean).join(" · "), works: batch});
-        batch = [];
-      };
-      group.forEach((w, i) => {
-        const next = group[i + 1];
-        batch.push(w);
-        // Close the room when it is full, or at a change of series once it is half full.
-        if (batch.length >= size || (next && next.series !== w.series && batch.length >= size / 2)) flush();
-      });
-      flush();
-    }
+  const order = [...plan.sections, ...Array.from(new Set(works.map((w) => w.section))).filter((s) => !plan.sections.includes(s))];
+  const galleries: Room[] = [];
+  const portals: Portal[] = [];
+  order.forEach((section, tone) => {
+    // By series or author in the collection's own order, then by date (the works arrive in date order).
+    const all = works.filter((w) => w.section === section)
+      .map((w, i) => ({w, i})).sort((a, b) => (a.w.gorder ?? 9999) - (b.w.gorder ?? 9999) || a.i - b.i).map((x) => x.w);
+    if (!all.length) return;
+    const first = galleries.length;
+    let batch: Work[] = [];
+    const flush = () => {
+      if (!batch.length) return;
+      const names = Array.from(new Set(batch.map((w) => w.group || "").filter(Boolean)));
+      const years = batch.map((w) => w.year).filter(Boolean).sort();
+      const span = years.length ? (years[0] === years[years.length - 1] ? years[0] : `${years[0]} to ${years[years.length - 1]}`) : "undated";
+      const title = names.length ? names.slice(0, 3).join(" · ") + (names.length > 3 ? " and others" : "") : span;
+      galleries.push({period: section, tone, title, subtitle: names.length ? span : "", works: batch});
+      batch = [];
+    };
+    all.forEach((w, i) => {
+      const next = all[i + 1];
+      batch.push(w);
+      // Close the room when it is full, or at a change of series once it is more than half full.
+      if (batch.length >= size || (next && (next.group || "") !== (w.group || "") && batch.length >= size * 0.6)) flush();
+    });
+    flush();
+    const mine = galleries.slice(first);
+    mine.forEach((room) => {
+      const same = mine.filter((other) => other.title === room.title);
+      if (same.length > 1) room.subtitle = [room.subtitle, `part ${same.indexOf(room) + 1} of ${same.length}`].filter(Boolean).join(" · ");
+    });
+    const picks = Array.from(new Set([0, Math.floor(all.length / 2), all.length - 1])).map((i) => all[i]);
+    portals.push({title: section, count: all.length, rooms: galleries.length - first, to: first + 2, works: picks});
   });
-  return rooms;
+  if (!galleries.length) return [];
+  return [
+    {period: "Entrance", tone: 6, title: "Forecourt", subtitle: "", works: [], kind: "court"},
+    {period: "Entrance", tone: 6, title: "Entrance hall", subtitle: "The galleries", works: [], kind: "hall", portals},
+    ...galleries,
+  ];
 }
 
 /** Which hang a room gets: long runs are hung salon-style, some mid-sized rooms get a dividing wall. */
@@ -99,16 +122,21 @@ function stage(rooms: Room[]) {
   const shells: Shell[] = [];
   let z = 0;
   let entry = 4;
+  const kindAt = (i: number) => rooms[i].kind || kindOf(rooms[i].works.length, i);
+  const halfAt = (i: number) => {
+    const k = kindAt(i);
+    return k === "court" ? 11 : k === "hall" ? 9 : k === "divided" ? 7.5 : [6.5, 5.6, 7.2][(i * 2 + rooms[i].tone) % 3];
+  };
+  entry = 0;                                               // the building's door is in the middle of its front
   rooms.forEach((room, index) => {
-    const kind = kindOf(room.works.length, index);
-    const half = kind === "divided" ? 7.5 : [6.5, 5.6, 7.2][(index * 2 + room.tone) % 3];
-    const height = [4.6, 5.4, 4.2, 5.0][(index + room.tone * 2) % 4];
-    const nextHalf = index + 1 < rooms.length
-      ? (kindOf(rooms[index + 1].works.length, index + 1) === "divided" ? 7.5 : [6.5, 5.6, 7.2][((index + 1) * 2 + rooms[index + 1].tone) % 3])
-      : half;
+    const kind = kindAt(index);
+    const half = halfAt(index);
+    const height = kind === "court" ? 9 : kind === "hall" ? 6.4 : [4.6, 5.4, 4.2, 5.0][(index + room.tone * 2) % 4];
+    const nextHalf = index + 1 < rooms.length ? halfAt(index + 1) : half;
     const reach = Math.min(half, nextHalf) - 1.9;          // how far from the centre a door can sit
     const s = entry >= 0 ? 1 : -1;
-    const exit = -s * Math.min(reach, index % 3 === 2 ? 3 : 4);
+    const exit = kind === "court" ? 0 : -s * Math.min(reach, index % 3 === 2 ? 3 : 4);
+    const marks: Mark[] = [];
     const big = {w: 2.0, h: 1.6}, small = {w: 1.35, h: 1.02};
     const fit = (w: Work, box: {w: number; h: number}) => {
       const aspect = w.w / Math.max(1, w.h);
@@ -125,7 +153,26 @@ function stage(rooms: Room[]) {
     };
     route.push({x: entry, z: z - 0.9});
 
-    if (kind === "salon") {                                // two tiers on each side wall
+    if (kind === "court") {                                // open air in front of the building
+      depth = 14;
+      for (const cx of [-5.6, -2.4, 2.4, 5.6]) blocks.push({x0: cx - 0.4, x1: cx + 0.4, z0: z - depth + 0.9, z1: z - depth + 1.7});   // columns
+    } else if (kind === "hall") {                          // each gallery shown by three of its works
+      const list = room.portals || [];
+      const perWall = Math.ceil(list.length / 2);
+      depth = Math.max(16, 3.6 + perWall * 8.2);
+      list.forEach((portal, n) => {
+        const side = n < perWall ? 1 : -1;
+        const centre = z - 5.2 - (n < perWall ? n : n - perWall) * 8.2;
+        portal.works.forEach((work, k) => {
+          hang(work, side * (half - 0.07), centre + (k - (portal.works.length - 1) / 2) * 2.3, -side, 1.75, big);
+          places[places.length - 1].to = portal.to;
+        });
+        marks.push({x: side * (half - 0.16), z: centre, nx: -side, title: portal.title,
+          note: `${portal.count} works · ${portal.rooms} ${portal.rooms === 1 ? "room" : "rooms"}`});
+      });
+      blocks.push({x0: -1.2, x1: 1.2, z0: z - depth / 2 - 0.35, z1: z - depth / 2 + 0.35});   // the bench
+      route.push({x: 0, z: z - depth / 2 - 1.6});
+    } else if (kind === "salon") {                         // two tiers on each side wall
       const perWall = Math.ceil(rest.length / 2);
       const columns = Math.ceil(perWall / 2);
       depth = Math.max(10, 3.2 + 1.95 * columns);
@@ -162,11 +209,11 @@ function stage(rooms: Room[]) {
     }
     const back = z - depth;
     const hero = room.works[0];                            // the key work, on the back wall facing the entrance
-    places.push({work: hero, room: index, x: entry, y: HANG, z: back + 0.22, facing: 0, nx: 0, nz: 1, ...fit(hero, big), small: false});
+    if (hero) places.push({work: hero, room: index, x: entry, y: HANG, z: back + 0.22, facing: 0, nx: 0, nz: 1, ...fit(hero, big), small: false});
     const options = [entry + 3.0, entry - 3.0].filter((x) => Math.abs(x) < half - 1.7 && Math.abs(x - exit) > 2.9 && Math.abs(x) > (divider ? 2 : -1));
     const titleX = options.length ? options[0] : entry;
     route.push({x: exit, z: back + 1.4});
-    shells.push({index, z, depth, half, height, entry, exit, kind, tone: room.tone, blocks, divider, titleX});
+    shells.push({index, z, depth, half, height, entry, exit, kind, tone: room.tone, blocks, divider, titleX, marks});
     z = back;
     entry = exit;
   });
@@ -230,10 +277,11 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
   const frame = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{x: number; y: number} | null>(null);
+  const limit = useRef(MAX_ZOOM);          // set when the picture loads, from its real size
   const src = work.image.replace(/0001\.jpg$/, `${String(page).padStart(4, "0")}.jpg`);
   const go = (n: number) => { setPage(Math.max(1, Math.min(work.pages, n))); setView({zoom: 1, x: 0, y: 0}); setReady(false); };
   const zoomBy = (factor: number, cx = 0, cy = 0) => setView((v) => {
-    const zoom = Math.max(1, Math.min(MAX_ZOOM, v.zoom * factor));
+    const zoom = Math.max(1, Math.min(limit.current, v.zoom * factor));
     const k = zoom / v.zoom;
     return zoom === 1 ? {zoom: 1, x: 0, y: 0} : {zoom, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k};
   });
@@ -284,7 +332,7 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
             </>
           )}
           <button type="button" onClick={() => zoomBy(1 / 1.4)} disabled={view.zoom <= 1} aria-label="Zoom out">−</button>
-          <button type="button" onClick={() => zoomBy(1.4)} disabled={view.zoom >= MAX_ZOOM} aria-label="Zoom in">+</button>
+          <button type="button" onClick={() => zoomBy(1.4)} disabled={view.zoom >= limit.current} aria-label="Zoom in">+</button>
           <button type="button" onClick={() => setView({zoom: 1, x: 0, y: 0})} disabled={view.zoom <= 1}>Whole page</button>
           <button type="button" onClick={onFull} aria-pressed={full}>{full ? "Exit full screen" : "Full screen"}</button>
           {work.href && <a href={work.href}>Item page</a>}
@@ -295,7 +343,7 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
         style={{cursor: view.zoom > 1 ? "grab" : "zoom-in"}}
         onDoubleClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
-          if (view.zoom >= MAX_ZOOM * 0.98) setView({zoom: 1, x: 0, y: 0});
+          if (view.zoom >= limit.current * 0.98) setView({zoom: 1, x: 0, y: 0});
           else zoomBy(2, e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
         }}
         onPointerDown={(e) => { drag.current = {x: e.clientX, y: e.clientY}; e.currentTarget.setPointerCapture(e.pointerId); }}
@@ -311,7 +359,15 @@ function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; o
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
         </button>
         <img src={src} alt={work.pages > 1 ? `${work.title}, page ${page}` : work.title} draggable={false}
-          onLoad={() => setReady(true)}
+          onLoad={(e) => {
+            // Stop at two screen pixels for each pixel of the scan: beyond that it only blurs.
+            const img = e.currentTarget, box = frame.current?.getBoundingClientRect();
+            if (box && img.naturalWidth) {
+              const fitted = Math.min(box.width / img.naturalWidth, box.height / img.naturalHeight);
+              limit.current = Math.max(1.5, Math.min(MAX_ZOOM, 2 / fitted));
+            }
+            setReady(true);
+          }}
           style={{transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`, opacity: ready ? 1 : 0.35}} />
       </div>
       {work.pages > 1 && (
@@ -332,9 +388,13 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
   const [selected, setSelected] = useState<Work | null>(null);
   const [viewing, setViewing] = useState<Work | null>(null);
   const [roomAt, setRoomAt] = useState(0);
+  const [look, setLook] = useState(false);            // mouse look: the view follows the mouse
+  const [mapOpen, setMapOpen] = useState(false);
+  const mapRef = useRef<() => void>(() => {});
+  mapRef.current = () => setMapOpen((open) => !open);
   const mount = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const api = useRef<{room: (i: number) => void; select: (step: number) => void; clear: () => void; hold: (key: string, down: boolean) => void} | null>(null);
+  const api = useRef<{room: (i: number) => void; select: (step: number) => void; clear: () => void; hold: (key: string, down: boolean) => void; look: () => void} | null>(null);
   const enteredRef = useRef(false);
   enteredRef.current = entered;
   const viewingRef = useRef(false);
@@ -409,7 +469,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       return;
     }
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let ratio = Math.min(window.devicePixelRatio, 1.5);
+    let ratio = Math.min(window.devicePixelRatio, 2);
     renderer.setPixelRatio(ratio);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     el.appendChild(renderer.domElement);
@@ -417,8 +477,10 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
 
     const scene = new THREE.Scene();
     const backdrop = new THREE.Color("#0c0b0a");
-    scene.background = backdrop;
-    scene.fog = new THREE.Fog(backdrop, 18, 46);
+    const sky = new THREE.Color("#31405a");             // dusk, outside the building
+    scene.background = sky;
+    const fog = new THREE.Fog(sky.clone(), 18, 46);
+    scene.fog = fog;
     const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 70);
     camera.rotation.order = "YXZ";
     scene.add(new THREE.HemisphereLight(0xfff1dc, 0x2a221c, 1.6));
@@ -433,6 +495,8 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
     const brass = keep(new THREE.MeshBasicMaterial({color: "#8a6a2f"}));
     const light = keep(new THREE.MeshBasicMaterial({color: "#cdb68c"}));
     const benchMat = keep(new THREE.MeshStandardMaterial({color: "#4a3324", roughness: 0.7}));
+    const stone = keep(new THREE.MeshStandardMaterial({color: "#b9ad9a", roughness: 0.9}));
+    const paving = keep(new THREE.MeshStandardMaterial({color: "#57514a", roughness: 0.95}));
     const unitBox = keep(new THREE.BoxGeometry(1, 1, 1));
     const unit = keep(new THREE.PlaneGeometry(1, 1));
     const box = (m: THREE.Material, w: number, h: number, d: number, x: number, y: number, z: number, parent: THREE.Object3D) => {
@@ -450,13 +514,21 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
     const signs: (null | (() => void))[] = [];        // per room: removes its text panels again
     shells.forEach((sh) => {
       const g = new THREE.Group();
-      const wall = wallMats[sh.tone % wallMats.length];
+      const court = sh.kind === "court";
+      const wall = court ? stone : wallMats[sh.tone % wallMats.length];
       const mid = sh.z - sh.depth / 2;
       const back = sh.z - sh.depth;
-      box(floorMat, sh.half * 2 + 0.6, 0.1, sh.depth, 0, -0.05, mid, g);
-      box(dark, sh.half * 2 + 0.6, 0.1, sh.depth, 0, sh.height + 0.05, mid, g);
-      box(wall, 0.3, sh.height, sh.depth, -sh.half - 0.15, sh.height / 2, mid, g);
-      box(wall, 0.3, sh.height, sh.depth, sh.half + 0.15, sh.height / 2, mid, g);
+      box(court ? paving : floorMat, court ? 60 : sh.half * 2 + 0.6, 0.1, court ? sh.depth + 30 : sh.depth, 0, -0.05, court ? mid + 15 : mid, g);
+      if (!court) {
+        box(dark, sh.half * 2 + 0.6, 0.1, sh.depth, 0, sh.height + 0.05, mid, g);
+        box(wall, 0.3, sh.height, sh.depth, -sh.half - 0.15, sh.height / 2, mid, g);
+        box(wall, 0.3, sh.height, sh.depth, sh.half + 0.15, sh.height / 2, mid, g);
+      } else {                                         // the front of the building: columns, a cornice, steps, wings to either side
+        for (const b of sh.blocks) box(stone, 0.8, 7.2, 0.8, (b.x0 + b.x1) / 2, 3.6, (b.z0 + b.z1) / 2, g);
+        box(stone, 13.4, 0.7, 1.9, 0, 7.55, back + 1.1, g);
+        box(stone, 13.4, 0.16, 2.6, 0, 0.02, back + 1.3, g);
+        for (const sx of [-1, 1]) box(stone, 16, sh.height, 0.3, sx * (sh.half + 8.3), sh.height / 2, back, g);
+      }
       const cross = (z: number, doorX: number | null, span: number, high: number) => {   // a cross wall, with or without a door
         if (doorX === null) { box(wall, span * 2 + 0.6, high, 0.3, 0, high / 2, z, g); return; }
         const l = doorX - DOOR_W / 2, r = doorX + DOOR_W / 2;
@@ -465,13 +537,15 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
         box(wall, DOOR_W, high - DOOR_H, 0.3, doorX, DOOR_H + (high - DOOR_H) / 2, z, g);
         box(brass, DOOR_W + 0.16, 0.06, 0.34, doorX, DOOR_H + 0.03, z, g);
       };
-      if (sh.index === 0) cross(sh.z, null, sh.half, sh.height);
+      if (sh.index === 0 && !court) cross(sh.z, null, sh.half, sh.height);
       const next = shells[sh.index + 1];
       cross(back, next ? sh.exit : null, next ? Math.max(sh.half, next.half) : sh.half, next ? Math.max(sh.height, next.height) : sh.height);
-      box(light, sh.kind === "divided" ? 0.5 : 1.4, 0.02, Math.max(3, sh.depth - 5), sh.kind === "divided" ? sh.half / 2 : 0, sh.height - 0.02, mid, g);
+      if (!court) box(light, sh.kind === "divided" ? 0.5 : 1.4, 0.02, Math.max(3, sh.depth - 5), sh.kind === "divided" ? sh.half / 2 : 0, sh.height - 0.02, mid, g);
       if (sh.kind === "divided") box(light, 0.5, 0.02, Math.max(3, sh.depth - 5), -sh.half / 2, sh.height - 0.02, mid, g);
-      for (const sx of [-1, 1]) box(brass, 0.03, 0.03, sh.depth, sx * (sh.half - 0.02), 0.09, mid, g);
-      if (sh.divider) {                                // the freestanding wall, a little lower than the room
+      if (!court) for (const sx of [-1, 1]) box(brass, 0.03, 0.03, sh.depth, sx * (sh.half - 0.02), 0.09, mid, g);
+      if (court) {
+        // nothing to sit on outside
+      } else if (sh.divider) {                                // the freestanding wall, a little lower than the room
         const d = sh.divider;
         box(wall, 0.3, sh.height - 1.0, d.z1 - d.z0, 0, (sh.height - 1.0) / 2, (d.z0 + d.z1) / 2, g);
         box(brass, 0.34, 0.05, d.z1 - d.z0, 0, sh.height - 1.0, (d.z0 + d.z1) / 2, g);
@@ -489,24 +563,41 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       const sh = shells[i], room = rooms[i], back = sh.z - sh.depth;
       const made: {dispose: () => void}[] = [];
       const meshes: THREE.Mesh[] = [];
-      const panel = (tex: THREE.Texture, w: number, h: number, x: number, y: number) => {
+      const panel = (tex: THREE.Texture, w: number, h: number, x: number, y: number, z = back + 0.17, turn = 0) => {
         const mat = new THREE.MeshBasicMaterial({map: tex, transparent: true});
         const mesh = new THREE.Mesh(unit, mat);
         mesh.scale.set(w, h, 1);
-        mesh.position.set(x, y, back + 0.17);
+        mesh.position.set(x, y, z);
+        mesh.rotation.y = turn;
         groups[i].add(mesh);
         made.push(tex, mat);
         meshes.push(mesh);
       };
-      if (sh.titleX !== sh.entry) panel(textTexture([
+      if (sh.kind === "court") {                       // the name over the door
+        panel(textTexture([
+          {text: "SICALIPSIS", font: "500 170px Fraunces, Georgia, serif", color: "#2a2520"},
+          {text: "A VIRTUAL WUNDERKAMMER", font: "600 46px Inter, Arial, sans-serif", color: "#6b4f1c"},
+        ], 2048, 512), 9.6, 2.4, 0, 5.6);
+      } else if (sh.kind === "hall") {                 // the map: a name under each gallery's three works
+        panel(textTexture([
+          {text: "WELCOME", font: "600 34px Inter, Arial, sans-serif", color: "#d9a441"},
+          {text: "Sicalipsis", font: "500 96px Fraunces, Georgia, serif", color: "#f1ebe2"},
+          {text: "Early twentieth-century erotica in Spain", font: "400 38px Inter, Arial, sans-serif", color: "#cfc5b6"},
+          {text: "Each gallery is shown here by three of its works. Click one to go in.", font: "400 28px Inter, Arial, sans-serif", color: "#9a8f80"},
+        ], 1024, 512, "left"), 5.2, 2.6, sh.titleX, 2.5);
+        for (const mark of sh.marks) panel(textTexture([
+          {text: mark.title, font: "500 60px Fraunces, Georgia, serif", color: "#f1ebe2"},
+          {text: mark.note.toUpperCase(), font: "600 28px Inter, Arial, sans-serif", color: "#d9a441"},
+        ], 1280, 200), 6.4, 1.0, mark.x, 3.35, mark.z, mark.nx > 0 ? Math.PI / 2 : -Math.PI / 2);
+      } else if (sh.titleX !== sh.entry) panel(textTexture([
         {text: `${room.period}`.toUpperCase(), font: "600 34px Inter, Arial, sans-serif", color: "#d9a441"},
         {text: room.title, font: "500 84px Fraunces, Georgia, serif", color: "#f1ebe2"},
         {text: room.subtitle || `${room.works.length} works`, font: "400 40px Inter, Arial, sans-serif", color: "#cfc5b6"},
-        {text: `Room ${i + 1} of ${rooms.length} · ${room.works.length} works`, font: "400 28px Inter, Arial, sans-serif", color: "#9a8f80"},
+        {text: `${room.works.length} works`, font: "400 28px Inter, Arial, sans-serif", color: "#9a8f80"},
       ], 1024, 512, "left"), 3.2, 1.6, sh.titleX, 1.9);
-      if (i < last) {
+      if (i < last && sh.kind !== "court") {
         const next = rooms[i + 1];
-        panel(textTexture([{text: `Next: ${next.title}${next.subtitle ? " · " + next.subtitle : ""}`, font: "500 40px Inter, Arial, sans-serif", color: "#d9a441"}], 1024, 96),
+        panel(textTexture([{text: `Next: ${next.period !== room.period ? next.period + " · " : ""}${next.title}`, font: "500 40px Inter, Arial, sans-serif", color: "#d9a441"}], 1024, 96),
           3.2, 0.3, sh.exit, DOOR_H + 0.42);
       }
       signs[i] = () => { meshes.forEach((m) => groups[i].remove(m)); made.forEach((d) => d.dispose()); };
@@ -662,6 +753,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       speed = strafe = push = 0;
     };
     const pick = (i: number) => {
+      if (i >= 0 && hung[i].place.to != null) { jump(hung[i].place.to!); return; }   // in the hall: go into that gallery
       focus = i;
       setSelected(i >= 0 ? hung[i].place.work : null);
       if (i < 0) return;
@@ -686,6 +778,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       },
       clear: () => pick(-1),
       hold: (key, down) => { if (down) { keys.add(key); auto = null; } else keys.delete(key); },
+      look: () => { if (document.pointerLockElement === el) document.exitPointerLock(); else el.requestPointerLock?.(); },
     };
 
     // ----- Input -----
@@ -698,7 +791,20 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
     };
     let drag: {x: number; y: number} | null = null;
     let moved = 0;
-    const onDown = (e: PointerEvent) => { drag = {x: e.clientX, y: e.clientY}; moved = 0; el.setPointerCapture(e.pointerId); };
+    let locked = false;                               // mouse look: the pointer is held and moving the mouse turns the view
+    const onLock = () => { locked = document.pointerLockElement === el; setLook(locked); if (locked) { drag = null; setEntered(true); } };
+    const onMouse = (e: MouseEvent) => {
+      if (!locked || viewingRef.current) return;
+      if (auto && auto.face) auto.face = null;
+      yaw -= e.movementX * 0.0023;
+      pitch = Math.max(-0.7, Math.min(0.7, pitch - e.movementY * 0.0023));
+    };
+    const onDown = (e: PointerEvent) => {
+      moved = 0;
+      if (locked) { drag = null; return; }
+      drag = {x: e.clientX, y: e.clientY};
+      el.setPointerCapture(e.pointerId);
+    };
     const onMove = (e: PointerEvent) => {
       if (!drag || !enteredRef.current) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -717,7 +823,9 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       drag = null;
       if (wasDrag || !enteredRef.current) return;
       const r = el.getBoundingClientRect();
-      ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+      // With mouse look on, a click acts on whatever is at the centre of the view.
+      ray.setFromCamera(locked ? new THREE.Vector2(0, 0)
+        : new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
       const hit = ray.intersectObjects(hung.filter((h) => groups[h.place.room].visible).map((h) => h.art))[0];
       if (hit) {                                      // first click walks up to the work, a second opens it
         const i = hit.object.userData.index;
@@ -748,6 +856,8 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       else if (k === "home") jump(0);
       else if (k === "end") jump(last);
       else if (k === "f") fullRef.current();
+      else if (k === "m") mapRef.current();
+      else if (k === "l") api.current!.look();
       else if (k === "escape") { if (focus >= 0) pick(-1); else if (!document.fullscreenElement) setEntered(false); }
       else return;
       e.preventDefault();
@@ -761,6 +871,8 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
     el.addEventListener("keydown", onKey);
     el.addEventListener("keyup", onKeyUp);
     el.addEventListener("blur", onBlur);
+    el.addEventListener("mousemove", onMouse);
+    document.addEventListener("pointerlockchange", onLock);
 
     const resize = () => {
       const w = el.clientWidth, h = el.clientHeight;
@@ -783,7 +895,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       if (real > 0.026) slow++; else if (real < 0.014) fast++;
       if (frame % 90 === 89) {
         const top = Math.min(window.devicePixelRatio, 2);
-        if (slow > 30 && ratio > 0.75) { ratio = Math.max(0.75, ratio - 0.25); renderer.setPixelRatio(ratio); resize(); }
+        if (slow > 30 && ratio > 1) { ratio = Math.max(1, ratio - 0.25); renderer.setPixelRatio(ratio); resize(); }   // never below the screen's own pixels
         else if (fast > 80 && ratio < top) { ratio = Math.min(top, ratio + 0.25); renderer.setPixelRatio(ratio); resize(); }
         slow = fast = 0;
       }
@@ -830,7 +942,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
           const next = constrain(pos.x - Math.sin(yaw) * go + Math.cos(yaw) * strafe * dt, pos.z - Math.cos(yaw) * go - Math.sin(yaw) * strafe * dt);
           pos.x = next.x;
           pos.z = next.z;
-          if (!turn && !drag) pitch += (0 - pitch) * Math.min(1, dt * 1.5);
+          if (!turn && !drag && !locked) pitch += (0 - pitch) * Math.min(1, dt * 1.5);
         }
       }
       camera.position.set(pos.x, EYE, pos.z);
@@ -852,7 +964,13 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
           if (g.visible) dress(i);
           else if (signs[i] && Math.abs(i - here) > 3) { signs[i]!(); signs[i] = null; }
         });
-        if (here !== lastRoom) { lastRoom = here; setRoomAt(here); }
+        if (here !== lastRoom) {
+          lastRoom = here;
+          setRoomAt(here);
+          const outside = shells[here].kind === "court";     // sky outside, darkness between the rooms inside
+          scene.background = outside ? sky : backdrop;
+          fog.color.copy(outside ? sky : backdrop);
+        }
         if (focus >= 0 && !auto && Math.hypot(hung[focus].place.x - pos.x, hung[focus].place.z - pos.z) > 6.5) pick(-1);
       }
       renderer.render(scene, camera);
@@ -869,6 +987,9 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       el.removeEventListener("keydown", onKey);
       el.removeEventListener("keyup", onKeyUp);
       el.removeEventListener("blur", onBlur);
+      el.removeEventListener("mousemove", onMouse);
+      document.removeEventListener("pointerlockchange", onLock);
+      if (document.pointerLockElement === el) document.exitPointerLock();
       hung.forEach(drop);
       signs.forEach((undo) => undo && undo());
       dispose.forEach((d) => d.dispose());
@@ -883,6 +1004,8 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
 
   const room = rooms[Math.min(roomAt, rooms.length - 1)];
   const periods = Array.from(new Set(rooms.map((r) => r.period)));
+  const portals = rooms.find((r) => r.kind === "hall")?.portals || [];
+  const goTo = (i: number) => { api.current?.room(i); setMapOpen(false); refocus(); };
   const pad = (key: string, label: string, glyph: string) => (
     <button type="button" aria-label={label}
       onPointerDown={(e) => { e.preventDefault(); setEntered(true); api.current?.hold(key, true); }}
@@ -904,13 +1027,13 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
             {periods.map((period) => (
               <optgroup key={period} label={period}>
                 {rooms.map((r, i) => (r.period === period ? (
-                  <option key={i} value={i}>{i + 1}. {r.title}{r.subtitle ? ` · ${r.subtitle}` : ""}</option>
+                  <option key={i} value={i}>{r.title}{r.subtitle ? ` · ${r.subtitle}` : ""}</option>
                 ) : null))}
               </optgroup>
             ))}
           </select>
         </label>
-        <span className="sic-walk__count">{shown.length} works in {rooms.length} rooms</span>
+        <span className="sic-walk__count">{shown.length} works in {portals.length} galleries, {rooms.filter((r) => !r.kind).length} rooms</span>
         <div className="sic-walk__views" role="group" aria-label="View">
           <button type="button" aria-pressed={view === "walk"} onClick={() => setView("walk")}>Walk</button>
           <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>List</button>
@@ -920,7 +1043,8 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       {view === "walk" ? (
         <div className="sic-walk__stage" ref={stageRef} style={{height: full ? "100vh" : height}}>
           <div className="sic-walk__canvas" ref={mount} tabIndex={0}
-            aria-label="Gallery rooms. W A S D or the arrow keys walk and turn; drag to look around; N and P go to the next and previous work; Enter opens the selected work; Page Up and Page Down change room; F for full screen; Escape to leave." />
+            aria-label="Gallery rooms. W A S D or the arrow keys walk and turn; drag to look around, or press L for mouse look; N and P go to the next and previous work; Enter opens the selected work; Page Up and Page Down change room; M opens the map; F for full screen; Escape to leave." />
+          {look && <span className="sic-walk__aim" aria-hidden="true" />}
           {room && (
             <div className="sic-walk__where" aria-live="polite">
               <span>{room.period}</span>
@@ -928,13 +1052,18 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
               <em>{room.subtitle}</em>
             </div>
           )}
-          <button type="button" className="sic-walk__full" onClick={toggleFull} aria-pressed={full}>
-            {full ? "Exit full screen" : "Full screen"}
-          </button>
+          <div className="sic-walk__tools">
+            <button type="button" className="sic-walk__full" onClick={() => setMapOpen(true)}>Map</button>
+            <button type="button" className="sic-walk__full" aria-pressed={look}
+              onClick={() => { setEntered(true); api.current?.look(); }}>{look ? "Mouse look on (Esc)" : "Mouse look"}</button>
+            <button type="button" className="sic-walk__full" onClick={toggleFull} aria-pressed={full}>
+              {full ? "Exit full screen" : "Full screen"}
+            </button>
+          </div>
           {!entered && !viewing && (
             <button type="button" className="sic-walk__enter" onClick={refocus}>
-              <strong>Enter the exhibition</strong>
-              <span>Drag to look around. Walk with W A S D or the arrow keys, or click the floor to go there. Click a work for its label; click it again, or press Open, to see it up close. Esc to leave.</span>
+              <strong>Enter the building</strong>
+              <span>Drag to look around, or switch on mouse look. Walk with W A S D or the arrow keys, or click the floor to go there. In the entrance hall, click a picture to go into its gallery; the map takes you anywhere. Click a work for its label, and again to see it up close.</span>
             </button>
           )}
           {selected && !viewing && (
@@ -961,13 +1090,40 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
             <button type="button" onClick={() => { api.current?.select(1); refocus(); }}>Next work ›</button>
             <button type="button" onClick={() => { api.current?.room(roomAt + 1); refocus(); }} disabled={roomAt >= rooms.length - 1}>Room →</button>
           </div>
+          {mapOpen && (
+            <div className="sic-map" role="dialog" aria-modal="true" aria-label="Map of the building">
+              <header>
+                <h3>Map of the building</h3>
+                <button type="button" onClick={() => { setMapOpen(false); refocus(); }}>Close</button>
+              </header>
+              <button type="button" className="sic-map__hall" onClick={() => goTo(1)}>Entrance hall</button>
+              <div className="sic-map__plan">
+                {portals.map((portal) => (
+                  <section key={portal.title} className="sic-map__gallery">
+                    <button type="button" className="sic-map__enter" onClick={() => goTo(portal.to)}>
+                      <span className="sic-map__thumbs">{portal.works.map((w) => <img key={w.id} src={w.thumb} alt="" />)}</span>
+                      <strong>{portal.title}</strong>
+                      <em>{portal.count} works · {portal.rooms} {portal.rooms === 1 ? "room" : "rooms"}</em>
+                    </button>
+                    {portal.rooms > 1 && (
+                      <ol>
+                        {rooms.map((r, i) => (i >= portal.to && i < portal.to + portal.rooms ? (
+                          <li key={i}><button type="button" aria-current={i === roomAt} onClick={() => goTo(i)}>{r.title}{/^part /.test(r.subtitle) ? ` (${r.subtitle})` : ""}</button></li>
+                        ) : null))}
+                      </ol>
+                    )}
+                  </section>
+                ))}
+              </div>
+            </div>
+          )}
           {viewing && <WorkViewer key={viewing.id} work={viewing} full={full} onFull={toggleFull} onClose={closeViewer} />}
         </div>
       ) : (
         <div className="sic-walk__list">
-          {rooms.map((r, i) => (
+          {rooms.map((r, i) => (r.kind ? null : (
             <section key={i}>
-              <h3><small>{r.period}</small>{i + 1}. {r.title}{r.subtitle ? ` · ${r.subtitle}` : ""}</h3>
+              <h3><small>{r.period}</small>{r.title}{r.subtitle ? ` · ${r.subtitle}` : ""}</h3>
               <ul>
                 {r.works.map((w) => (
                   <li key={w.id}>
@@ -980,7 +1136,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
                 ))}
               </ul>
             </section>
-          ))}
+          )))}
         </div>
       )}
     </section>

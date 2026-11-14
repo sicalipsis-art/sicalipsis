@@ -11,6 +11,7 @@ wait for the next build.
 """
 import csv
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,23 @@ state = json.loads((data / "published" / "published.json").read_text(encoding="u
 with open(data / "published" / "rows.csv", encoding="utf-8-sig", newline="") as fh:
     rows = [r for r in csv.DictReader(fh) if r["objectid"] in state]
 
+# The page of the original site each work stood on (a magazine title, a series,
+# an author) and that page's place in its section, so a gallery's rooms follow
+# the same order. Pages that were only "Page 1, Page 2 ..." say nothing and are skipped.
+group_of = {}
+exhibits = data / "omeka" / "exhibits" / "exhibits.json"
+if exhibits.exists():
+    for exhibit in json.loads(exhibits.read_text(encoding="utf-8")):
+        order, last = 0, None
+        for page in exhibit["pages"]:
+            name = re.sub(r" \(p\. \d+\)$", "", page["title"])
+            if re.match(r"^Page \d+$", name):
+                continue
+            if name != last:
+                order, last = order + 1, name
+            for item in page["items"]:
+                group_of.setdefault(str(item), (name, order))
+
 works = []
 for r in rows:
     thumb = state[r["objectid"]]["ref"]["thumbnail"][0]
@@ -30,6 +48,8 @@ for r in rows:
         "date": r.get("date_display") or r["date"], "sort": r["date"] or "9999",
         "year": r["date"][:4], "estimated": r.get("date_certainty") == "estimated",
         "section": r["section"], "series": r["series"],
+        "group": group_of.get(r["omeka_item_id"], ("", 9999))[0],
+        "gorder": group_of.get(r["omeka_item_id"], ("", 9999))[1],
         "thumb": f"{base}/images/{r['objectid']}/thumb.jpg",
         "image": f"{base}/images/{r['objectid']}/0001.jpg",
         "w": thumb["width"], "h": thumb["height"], "pages": state[r["objectid"]]["pages"],

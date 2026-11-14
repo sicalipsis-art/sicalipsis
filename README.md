@@ -37,7 +37,7 @@ when it is built.
 | `content/` | Pages. `index.mdx`, `about/`, `_app.mdx` and the layouts are hand-written; `collections/<section>.mdx` are generated. |
 | `app/styles/custom.css` | The site's look. |
 | `app/components/` | Custom components (`SectionCards`). |
-| `app/components/GalleryWalk.client.tsx` | The walk-through gallery (three.js): the published works staged as an exhibition, in rooms ordered by period and grouped by collection and series, which the visitor roams freely (drag to look, keys or a click on the floor to walk), with a suggested route, title walls, full screen, a viewer inside the gallery for looking at a work up close (zoom, pages), and a list view as the accessible alternative. Reads `web/walk/works.json` from the bucket. |
+| `app/components/GalleryWalk.client.tsx` | The walk-through gallery (three.js): a building the visitor enters from a forecourt. Its entrance hall is the map: each section of the collection is a gallery, shown on the hall's walls by three of its own works, and a click on one goes in. Inside a gallery the works hang in a few large rooms by series or author and then by date. The visitor roams freely (drag or mouse look, keys or a click on the floor to walk), can open a map of the building at any time, and can look at any work up close in a viewer inside the gallery (zoom, pages). A list view is the accessible alternative. Reads `web/walk/works.json` from the bucket. |
 | `app/data/gallery_periods.json` | The gallery's periods (titles and year boundaries) and room size. The period titles are placeholders for the project team to rewrite. |
 | `app/data/sections.json` | Section cards for the home page. Generated. |
 | `app/data/site.json` | The bucket's public `web/` address, for components. Generated. |
@@ -176,7 +176,7 @@ Run the steps in order from the repository root. Every script can be re-run.
 7. **Regenerate the site's data-driven pages, then build.**
 
    ```sh
-   python tools/make_site_content.py ../data/published/rows.csv ../data/master/sicalipsis.csv . <public bucket address>/web
+   python tools/make_site_content.py ../data/published/rows.csv ../data/master/sicalipsis.csv . <public bucket address>/web --exhibits ../data/omeka/exhibits
    npm run build      # output in site/
    ```
 
@@ -190,6 +190,21 @@ Run the steps in order from the repository root. Every script can be re-run.
 
 9. **Mirror the data folder to the bucket** (see above), then commit and push the
    regenerated pages.
+
+## The original site's arrangement
+
+`tools/harvest_exhibits.py ../data` reads the Omeka site's exhibits (its menu
+sections), their introductions, their pages and the items on each page in
+order, one request at a time, into `../data/omeka/exhibits/`. From that:
+
+- `tools/build_master.py` takes each item's section from the exhibit it stood in;
+- `tools/make_site_content.py --exhibits` writes each section's page with the
+  original introduction and one page per magazine title, series or author, with
+  the items in the original order (continuation pages are joined to their
+  parent; the Image Gallery, which was only numbered pages, is one page in the
+  same order), and a collection tree;
+- `tools/make_walk.py` gives each work its series or author, so the gallery's
+  rooms follow the same order.
 
 ## Image tags
 
