@@ -15,10 +15,13 @@ when it is built.
 ## Status (13 November 2026)
 
 - The site builds and runs locally with a **45-item pilot**.
-- The pilot's images and manifests are still served from the local computer
-  (`http://localhost:5002`), so `canopy.yml`, `content/collections/*.mdx` and
-  `app/data/sections.json` contain `localhost` addresses. They must be
-  regenerated (step 7 below) once the bucket has a public address.
+- The pilot's images and manifests are served from the bucket's public
+  development address, `https://pub-86bc04aba3b948f081b236797ce9d2a6.r2.dev/web`.
+  Cloudflare rate-limits that address and does not intend it for production; a
+  custom domain should replace it before launch (regenerate with steps 6 and 7).
+- The bucket's CORS policy allows `https://sicalipsis-art.github.io` only, so in
+  a local preview the viewer cannot load manifests unless
+  `http://localhost:5001` is added to the policy.
 - The viewer shows one resized image per page; deep-zoom tiles are not made yet.
 - The About page is a placeholder.
 - 143 files exist only on the Omeka server and still need to be saved
@@ -69,13 +72,6 @@ npm install
 npm run dev        # http://localhost:5001
 ```
 
-While the site still points at `localhost:5002`, the pilot's images must also
-be served locally, from the folder that `tools/make_iiif.py` wrote:
-
-```sh
-python tools/serve_cors.py ../pilot/web 5002
-```
-
 Restart `npm run dev` after changing `canopy.yml` or `content/navigation.yml`;
 those two files are read once at start-up. Stop it before `npm run build`: both
 write to `site/`.
@@ -92,8 +88,8 @@ write to `site/`.
 4. Push to `main`. The workflow builds the site and publishes it at
    `https://sicalipsis-art.github.io/sicalipsis/`.
 
-The workflow stops with an error, and publishes nothing, while the site still
-contains `localhost` addresses.
+The workflow stops with an error, and publishes nothing, if the site contains
+`localhost` addresses.
 
 ## Updating the collection
 
