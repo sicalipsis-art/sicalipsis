@@ -198,6 +198,10 @@ export default function ContentMap({height = "78vh"}: {height?: string}) {
       if (wasDrag) return;
       const m = local(e), i = nearest(m.x, m.y);
       chosen.current = i;
+      if (i >= 0 && width > 640) {                     // keep the chosen item clear of the panel that opens on the right
+        const edge = width - Math.min(304, width * 0.8) - 170, p = at(data.current!.nodes[i]);
+        if (p.x > edge) view.current.x -= (p.x - edge) / view.current.k;
+      }
       setPicked(i >= 0 ? data.current!.nodes[i] : null);
       ask();
     };

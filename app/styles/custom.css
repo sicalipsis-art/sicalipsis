@@ -1539,6 +1539,7 @@ body.canopy-type-work main dt {
 }
 
 .sic-related__row li::marker,
+.sic-net__panel li::marker,
 .sic-tsearch li::marker {
   content: "";
 }
@@ -1651,4 +1652,10 @@ body.canopy-type-work main dt {
 
 .sic-net__cross {
   color: #9bd17f;
+}
+
+/* Long addresses in an item's details (the manifest link) wrap inside their column. */
+.canopy-work--secondary dd,
+.canopy-work--secondary dd a {
+  overflow-wrap: anywhere;
 }

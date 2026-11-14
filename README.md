@@ -239,13 +239,19 @@ Run the steps in order from the repository root. Every script can be re-run.
    python tools/make_annotations.py ../data ../work <public bucket address>
    ```
 
-10. **Refresh "Looks like" and "Reads like".** Compares every object's first
-    page image (SigLIP 2 embeddings) and every object's text (word weights),
-    and writes each object's nearest neighbours to `web/related/related.json`
-    and the layout of the Network page to `web/related/map.json` in the bucket;
-    the item pages and the Network page read them without a new build.
+10. **Refresh "Looks like", "Reads like" and the text-and-picture links.**
+    Compares every object's first page image (SigLIP 2 embeddings) and every
+    object's text (word weights). It also connects texts with pictures in the
+    Image Gallery: a picture whose title, or source and issue number, names a
+    publication in the collection is linked to it, and a text is linked to
+    pictures that match its subject strongly. Everything is written to
+    `web/related/related.json`, and the layout of the Network page to
+    `web/related/map.json`, in the bucket; the item pages and the Network page
+    read them without a new build. Fetch the texts first (as in step 5), or
+    newly read documents are left out.
 
     ```sh
+    rclone copy r2:sicalipsis-files/web/ocr ../work/texts/ocr --include "*.txt"
     python tools/make_related.py ../data ../work <public bucket address>
     ```
 
