@@ -5,5 +5,7 @@ navigation:
     label: Gallery walk
   - href: /search
     label: Search
+  - href: /texts
+    label: Texts
   - href: /about
     label: About

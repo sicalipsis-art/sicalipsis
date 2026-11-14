@@ -12,5 +12,6 @@ export const clientComponents = {
   ViewerZoom: "./ViewerZoom.client.tsx",
   ItemText: "./ItemText.client.tsx",
   RelatedByContent: "./RelatedByContent.client.tsx",
+  TextSearch: "./TextSearch.client.tsx",
   CollectionSearch: "./CollectionSearch.client.tsx",
 };

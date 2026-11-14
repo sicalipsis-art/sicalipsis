@@ -1280,3 +1280,117 @@ body.canopy-type-work main dt {
   font-size: 0.78rem;
   opacity: 0.6;
 }
+
+/* Search inside the texts */
+.sic-tsearch form label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent-default);
+}
+
+.sic-tsearch form div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem;
+}
+
+.sic-tsearch input[type="search"] {
+  min-width: 0;
+  font: inherit;
+  font-size: 1.05rem;
+  padding: 0.75rem 0.9rem;
+  color: inherit;
+  background: rgb(0 0 0 / 0.35);
+  border: 1px solid rgb(255 255 255 / 0.22);
+}
+
+.sic-tsearch form button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.75rem 1.4rem;
+  color: #17120a;
+  background: var(--color-accent-default);
+  border: 1px solid var(--color-accent-default);
+  cursor: pointer;
+}
+
+.sic-tsearch__about {
+  max-width: 62rem;
+  margin: 0.8rem 0 1.5rem;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.sic-tsearch__count {
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.sic-tsearch ol {
+  list-style: none;
+  margin: 1rem 0 3rem;
+  padding: 0;
+  display: grid;
+  gap: 1.1rem;
+}
+
+.sic-tsearch li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 1rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.sic-tsearch li img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: top;
+}
+
+.sic-tsearch h3 {
+  margin: 0 0 0.2rem;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 400;
+}
+
+.sic-tsearch h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sic-tsearch h3 a:hover {
+  color: var(--color-accent-default);
+}
+
+.sic-tsearch__pages {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  opacity: 0.65;
+}
+
+.sic-tsearch__line {
+  margin: 0.15rem 0;
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+}
+
+.sic-tsearch__line span {
+  font-family: var(--font-sans, inherit);
+  font-size: 0.72rem;
+  opacity: 0.6;
+  margin-right: 0.3rem;
+}
+
+.sic-tsearch mark {
+  background: var(--color-accent-default);
+  color: #17120a;
+  padding: 0 0.1em;
+}
