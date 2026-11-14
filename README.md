@@ -37,7 +37,9 @@ when it is built.
 | `content/` | Pages. `index.mdx`, `about/`, `_app.mdx` and the layouts are hand-written; `collections/<section>.mdx` are generated. |
 | `app/styles/custom.css` | The site's look. |
 | `app/components/` | Custom components (`SectionCards`). |
+| `app/components/GalleryWalk.client.tsx` | The walk-through gallery (three.js): every published work hung in date order, one room per year, with a list view as the accessible alternative. Reads `web/walk/works.json` from the bucket. |
 | `app/data/sections.json` | Section cards for the home page. Generated. |
+| `app/data/site.json` | The bucket's public `web/` address, for components. Generated. |
 | `tools/` | Python scripts for ingest: harvest, reconciliation, master spreadsheet, web images, manifests, generated pages. |
 | `.github/workflows/deploy-pages.yml` | Builds and publishes to GitHub Pages on every push to `main`. |
 
@@ -167,8 +169,24 @@ Run the steps in order from the repository root. Every script can be re-run.
    npm run build      # output in site/
    ```
 
-8. **Mirror the data folder to the bucket** (see above), then commit and push the
+8. **Refresh the walk-through gallery's data.** This rewrites
+   `web/walk/works.json` in the bucket from everything published; the gallery
+   page picks it up without a new build.
+
+   ```sh
+   python tools/make_walk.py ../data ../work <public bucket address>
+   ```
+
+9. **Mirror the data folder to the bucket** (see above), then commit and push the
    regenerated pages.
+
+## Image tags (in progress)
+
+`tools/tag_images.py` assigns tags from the fixed vocabulary in
+`tools/tag_vocabulary.json`, using the SigLIP 2 model. On a first test of 24
+images it chose the right image type for 23, but over-assigned the "depicts"
+tags, so its output is not on the site yet. Hand-checked labels are being
+collected in `../data/tags/seed_labels.csv` to train and measure it.
 
 ## Known gaps in the data
 

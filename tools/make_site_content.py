@@ -6,6 +6,7 @@ Writes, inside <site_dir>:
   canopy.yml                         collection address, facets, featured works, theme
   content/collections/<slug>.mdx     one page per section, listing its works
   app/data/sections.json             section cards for the home and collections pages
+  app/data/site.json                 the public address of the file bucket's web/ folder
 
 Hand-written pages (home, about, layouts, styles) are not touched.
 """
@@ -117,6 +118,8 @@ referencedManifests:
     })
 
 (site / "app" / "data").mkdir(parents=True, exist_ok=True)
+(site / "app" / "data" / "site.json").write_text(
+    json.dumps({"webBase": base}, indent=2), encoding="utf-8")
 (site / "app" / "data" / "sections.json").write_text(
     json.dumps(cards, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
 print(f"canopy.yml, {len(cards)} section pages and sections.json written to {site}")

@@ -5,5 +5,7 @@ export const components = {
   SectionCards: "./SectionCards.tsx",
 };
 
-// Browser-only components (none yet).
-export const clientComponents = {};
+// Browser-only components, bundled separately and started in the browser.
+export const clientComponents = {
+  GalleryWalk: "./GalleryWalk.client.tsx",
+};

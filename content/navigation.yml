@@ -1,6 +1,8 @@
 navigation:
   - href: /collections
     label: Collections
+  - href: /walk
+    label: Gallery walk
   - href: /search
     label: Search
   - href: /about
