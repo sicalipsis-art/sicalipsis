@@ -49,6 +49,7 @@ collection:
 metadata:
   - Section
   - Series
+  - Subject
   - Creator
   - Year
   - Type
