@@ -3,6 +3,7 @@
 // Rendered at build time.
 export const components = {
   SectionCards: "./SectionCards.tsx",
+  PageCards: "./PageCards.tsx",
 };
 
 // Browser-only components, bundled separately and started in the browser.

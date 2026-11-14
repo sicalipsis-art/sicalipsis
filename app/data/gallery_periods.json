@@ -1,7 +1,7 @@
 {
   "about": "Periods for the walk-through gallery, in visiting order. Each period becomes a suite of rooms; within it, works are grouped by collection and series. The titles and year boundaries are working placeholders for the project team to rewrite: change them here and rebuild. Works without a date go to the period marked undated.",
   "roomSize": 14,
-  "sections": ["Image Gallery", "Erotic Magazines", "Erotic Novelettes", "Essays on Sexuality, Sexology, and Eugenics", "Nudism & Naturism"],
+  "sections": ["Image Gallery", "Erotic Magazines", "Erotic Novelettes", "Essays on Sexuality, Sexology, and Eugenics", "Genetics, Eugenics & Sexual Pedagogy", "Nudism & Naturism"],
   "periods": [
     {"title": "Turn of the century", "from": 0, "to": 1913},
     {"title": "War years and after", "from": 1914, "to": 1922},

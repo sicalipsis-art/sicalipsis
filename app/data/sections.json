@@ -3,9 +3,9 @@
     "name": "Image Gallery",
     "label": "Image Gallery",
     "href": "/collections/image-gallery",
-    "count": 642,
-    "preview": 641,
-    "image": "https://pub-86bc04aba3b948f081b236797ce9d2a6.r2.dev/web/images/sicbf1a5f6bd/thumb.jpg"
+    "count": 643,
+    "preview": 643,
+    "image": "https://pub-86bc04aba3b948f081b236797ce9d2a6.r2.dev/web/images/sic00079/thumb.jpg"
   },
   {
     "name": "Erotic Magazines",
@@ -19,17 +19,25 @@
     "name": "Erotic Novelettes",
     "label": "Erotic Novelettes",
     "href": "/collections/erotic-novelettes",
-    "count": 554,
-    "preview": 241,
-    "image": "https://pub-86bc04aba3b948f081b236797ce9d2a6.r2.dev/web/images/sic00834/thumb.jpg"
+    "count": 555,
+    "preview": 276,
+    "image": "https://pub-86bc04aba3b948f081b236797ce9d2a6.r2.dev/web/images/sic00800/thumb.jpg"
   },
   {
     "name": "Essays on Sexuality, Sexology, and Eugenics",
     "label": "Essays",
     "href": "/collections/essays",
-    "count": 204,
-    "preview": 202,
+    "count": 158,
+    "preview": 158,
     "image": "https://pub-86bc04aba3b948f081b236797ce9d2a6.r2.dev/web/images/sic00636/thumb.jpg"
+  },
+  {
+    "name": "Genetics, Eugenics & Sexual Pedagogy",
+    "label": "Genetics & Eugenics",
+    "href": "/collections/genetics",
+    "count": 45,
+    "preview": 45,
+    "image": "https://pub-86bc04aba3b948f081b236797ce9d2a6.r2.dev/web/images/sic00591/thumb.jpg"
   },
   {
     "name": "Nudism & Naturism",

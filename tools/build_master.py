@@ -251,6 +251,23 @@ if text_dir:
             if len(content) > 200:
                 texts[path.stem] = content
 date_tally = dates.resolve(rows + new_rows, texts)
+# Sections follow the original site's exhibits where an item stood on one of
+# their pages (omeka/exhibits, from harvest_exhibits.py); other items keep the
+# section worked out above.
+exhibit_dir = data / "omeka" / "exhibits"
+if (exhibit_dir / "exhibits.json").exists():
+    import json
+    menu = {e["slug"]: e["menu_title"]
+            for e in json.loads((exhibit_dir / "exhibits.json").read_text(encoding="utf-8"))}
+    exhibit_of = {}
+    for placement in read_csv(exhibit_dir / "exhibit_items.csv"):
+        exhibit_of.setdefault(placement["omeka_item_id"], menu[placement["exhibit"]])
+    moved = 0
+    for r in rows:
+        section = exhibit_of.get(r["omeka_item_id"])
+        if section and section != r["section"]:
+            r["section"], moved = section, moved + 1
+    print(f"sections from the original exhibits: {len(exhibit_of)} items placed, {moved} moved to another section")
 # Titles, dates and other details read from the items themselves (master/enrichment.csv).
 # A value is only added where the record had none; a generic or missing title is
 # replaced and the old one kept in title_original. A firm date from the item

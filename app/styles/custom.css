@@ -860,3 +860,131 @@ body.canopy-type-work main dt {
     width: auto;
   }
 }
+
+/* Pages inside a collection: cards, plain lists and previous/next links */
+.sic-pages {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  gap: 1.25rem;
+  margin: 0 0 3rem;
+}
+
+.sic-page {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: rgb(255 255 255 / 0.03);
+  transition: border-color 150ms ease, transform 150ms ease;
+}
+
+.sic-page:hover,
+.sic-page:focus-visible {
+  border-color: var(--color-accent-default);
+  transform: translateY(-2px);
+}
+
+.sic-page img,
+.sic-page__blank {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: top;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.sic-page__text {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem 0.85rem 0.9rem;
+}
+
+.sic-page__name {
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.sic-page__count {
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.sic-pagelist {
+  list-style: none;
+  margin: 0 0 1.75rem;
+  padding: 0;
+  columns: 18rem 3;
+  column-gap: 2.5rem;
+}
+
+.sic-pagelist li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  break-inside: avoid;
+}
+
+.sic-pagelist a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sic-pagelist a:hover {
+  color: var(--color-accent-default);
+}
+
+.sic-pagelist span {
+  opacity: 0.55;
+  font-size: 0.85rem;
+}
+
+.sic-tree__section .sic-pagelist {
+  columns: auto;
+  margin: 2rem 0 0.5rem;
+}
+
+.sic-tree__section .sic-pagelist li {
+  border-bottom: 1px solid var(--color-accent-default);
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+}
+
+.sic-pagenav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+}
+
+.sic-pagenav a {
+  display: grid;
+  gap: 0.1rem;
+  color: inherit;
+  text-decoration: none;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+}
+
+.sic-pagenav a:hover {
+  color: var(--color-accent-default);
+}
+
+.sic-pagenav a span {
+  font-family: var(--font-sans, inherit);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent-default);
+}
+
+.sic-page-header .sic-pagenav {
+  margin: 0 0 1.5rem;
+}
