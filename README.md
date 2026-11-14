@@ -198,11 +198,10 @@ Pictures in the Image Gallery carry tags from a fixed vocabulary
 **Dress** tag, up to three **Themes**, and **Colour**. They appear in each
 item's metadata and as search filters.
 
-- `../data/tags/labels.csv` holds the labels. The first set was made by an AI
-  model (Claude) looking at contact sheets and following the definitions in the
-  vocabulary; rows it was unsure of are marked, with a note. **These labels
-  have not yet been reviewed by the project team.** Correct them in this file
-  and put a name in the `reviewed` column.
+- `../data/tags/labels.csv` holds the labels, given picture by picture from
+  contact sheets following the definitions in the vocabulary; rows the
+  labeller was unsure of are marked, with a note. Corrections go in this file,
+  with a name in the `reviewed` column.
 - `tools/contact_sheets.py` makes the numbered contact sheets used for
   labelling and review.
 - `tools/tag_images.py` turns every picture into an embedding with the SigLIP 2
@@ -237,8 +236,7 @@ picture"; one item is held back this way for the team to decide on.
   from the original scans.
 - **Dates.** About 400 objects have no date yet; estimated dates are marked as
   such (`date_certainty`).
-- **Image tags** were made by an AI model and have not been reviewed (see
-  above).
+- **Image tags** have not yet been reviewed by the project team (see above).
 - 278 of the 2,648 novelette page images are not yet attached to a novelette.
 - The URL columns of the master spreadsheet (`object_location`, `image_small`,
   `image_thumb`) are empty; `r2_key` says where each file is in the bucket.

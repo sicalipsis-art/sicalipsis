@@ -15,6 +15,10 @@ Dates are standardised, and missing ones worked out, by dates.py; pass
 --texts <dir> (holding text/<objectid>.txt and ocr/<objectid>.txt) to let it also
 read dates printed in the documents themselves.
 
+Titles, dates and other details read from the items themselves are taken from
+<data_dir>/master/enrichment.csv (see the README); the "enriched" column lists
+what was added to a record in this way.
+
 Image tags (tag_* columns) are copied from <data_dir>/tags/image_tags.csv, which
 tag_images.py writes; tag_source says whether a picture's tags were given by a
 labeller or by the classifier.
@@ -39,13 +43,13 @@ text_dir = Path(sys.argv[sys.argv.index("--texts") + 1]) if "--texts" in sys.arg
 rec = data / "reconciliation"
 
 COLUMNS = [
-    "objectid", "parentid", "title", "creator", "date", "date_display", "date_certainty",
-    "date_range", "date_basis", "date_original",
+    "objectid", "parentid", "title", "title_original", "inscription", "creator", "date", "date_display",
+    "date_certainty", "date_range", "date_basis", "date_original",
     "description", "subject", "publisher", "contributor", "source", "relation",
     "identifier", "type", "format", "section", "series", "collection",
     "tag_type", "tag_figures", "tag_dress", "tag_colour", "tag_themes", "tag_source",
     "display_template", "object_location", "image_small", "image_thumb",
-    "file_status", "file_note", "r2_key", "box_path", "omeka_item_id", "omeka_url", "file_md5",
+    "enriched", "file_status", "file_note", "r2_key", "box_path", "omeka_item_id", "omeka_url", "file_md5",
 ]
 
 SECTION_OF_COLLECTION = {
@@ -125,7 +129,9 @@ for it in sorted(items, key=lambda r: int(r["item_id"])):
     rescued_key = ""
     if saved and status in ("only on Omeka server", "in Box (OCR version, unconfirmed)"):
         # Use Omeka's own file: it is certain to belong to this record.
-        box_path, status, rescued_key = "", "rescued from the Internet Archive", saved["r2_key"]
+        from_omeka = saved.get("source") == "Omeka server"
+        status = "copied from the Omeka server" if from_omeka else "rescued from the Internet Archive"
+        box_path, rescued_key = "", saved["r2_key"]
     box = box_by_path.get(box_path)
     collection = clean(it["collection_title"])
     section = SECTION_OF_COLLECTION.get(collection) or (ESSAYS if collection else "")
@@ -245,6 +251,48 @@ if text_dir:
             if len(content) > 200:
                 texts[path.stem] = content
 date_tally = dates.resolve(rows + new_rows, texts)
+# Titles, dates and other details read from the items themselves (master/enrichment.csv).
+# A value is only added where the record had none; a generic or missing title is
+# replaced and the old one kept in title_original. A firm date from the item
+# replaces a missing or estimated one.
+GENERIC_TITLES = {"", "[Untitled]", "Postcard", "Photograph", "Erotic postcard series",
+                  "Pornographic series of twelve postcards"}
+enrich_path = data / "master" / "enrichment.csv"
+found = {e["objectid"]: e for e in read_csv(enrich_path)} if enrich_path.exists() else {}
+enriched_count = 0
+for r in rows + new_rows:
+    e = found.get(r["objectid"])
+    if not e:
+        continue
+    added = []
+    r["inscription"] = e["inscription"]
+    if e["title"] and r["title"] in GENERIC_TITLES:
+        r["title_original"], r["title"] = r["title"], e["title"]
+        added.append(f"title ({e['title_source']})")
+    for column in ("creator", "description"):
+        if e[column] and not r.get(column):
+            r[column] = e[column]
+            added.append(column)
+    imprint = ": ".join(v for v in (e["place"], e["publisher"]) if v)
+    if e["publisher"] and not r.get("publisher"):
+        r["publisher"] = imprint
+        added.append("publisher")
+    if e["series"] and not r.get("identifier"):
+        r["identifier"] = e["series"]
+        added.append("series number")
+    if e["date"] and r.get("date_certainty") in ("", "estimated"):
+        if "/" in e["date"]:
+            lo, hi = (part[:4] for part in e["date"].split("/"))
+            r.update(date=lo, date_range=f"{lo}/{hi}", date_certainty="estimated",
+                     date_display=f"c. {lo}" if lo == hi else f"between {lo} and {hi}",
+                     date_basis=f"estimated from the item: {e['date_basis']}")
+        else:
+            r.update(date=e["date"], date_range="", date_certainty="derived",
+                     date_display=dates.display(e["date"]), date_basis=f"from the item: {e['date_basis']}")
+        added.append("date")
+    if added or e["inscription"]:
+        r["enriched"] = f"added from the item: {', '.join(added) or 'inscription'}"
+        enriched_count += 1
 # Files that were already cut short on the Omeka server (reconciliation/damaged_on_omeka.csv).
 damaged_path = rec / "damaged_on_omeka.csv"
 damaged = {d["stored_name"]: d["note"] for d in read_csv(damaged_path)} if damaged_path.exists() else {}
@@ -275,5 +323,7 @@ print("dates                     :", date_tally, f"(document text read for {len(
 print("date precision            :", dict(Counter({4: "year", 7: "month", 10: "day", 0: "none"}[len(r["date"])] for r in objects)))
 left = [r["date_original"] for r in objects if r.get("date_original") and not r["date"]]
 print(f"recorded dates not usable : {len(left)}  {left[:6]}")
+print(f"records enriched from the item itself: {enriched_count}")
+print("dates after enrichment    :", dict(Counter(r["date_certainty"] or "none yet" for r in rows + new_rows)))
 print(f"objects with image tags  : {sum(1 for r in objects if r.get('tag_type') or r.get('tag_themes'))}")
 print("compound objects          :", sum(1 for r in rows + new_rows if r["display_template"] == "compound_object"))

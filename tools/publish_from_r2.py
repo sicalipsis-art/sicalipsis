@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from make_iiif import render, write_collection, write_manifest  # noqa: E402
 
 BUCKET = "r2:sicalipsis-files"
-READY = {"in Box (identical)", "in Box (OCR version)", "in Box (not in Omeka)", "rescued from the Internet Archive"}
+READY = {"in Box (identical)", "in Box (OCR version)", "in Box (not in Omeka)", "rescued from the Internet Archive", "copied from the Omeka server"}
 
 
 NETWORK = ("no such host", "dial tcp", "request send failed", "connection reset", "timeout", "i/o timeout",

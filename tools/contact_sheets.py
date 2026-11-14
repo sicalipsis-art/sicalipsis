@@ -1,10 +1,11 @@
 """Lay thumbnails out on numbered contact sheets, for labelling and for checking labels.
 
-Usage: python contact_sheets.py <thumb_dir> <out_dir> [--per-row 4] [--rows 4] [--cell 300]
+Usage: python contact_sheets.py <thumb_dir> <out_dir> [--per-row 4] [--rows 4] [--cell 300] [--name thumb.jpg]
 
 <thumb_dir> holds one folder per object with a thumb.jpg inside (the layout of
 web/images/ in the bucket). Each sheet shows per-row x rows pictures, each with
-its objectid underneath, and is saved as <out_dir>/sheet_NNN.jpg. The file
+its objectid underneath (--name picks another file in each folder, such as
+0001.jpg for the full page image), and is saved as <out_dir>/sheet_NNN.jpg. The file
 <out_dir>/sheets.csv lists which object is on which sheet.
 """
 import csv
@@ -22,8 +23,9 @@ def main():
     thumbs, out = Path(sys.argv[1]), Path(sys.argv[2])
     per_row, n_rows, cell = option("--per-row", 4), option("--rows", 4), option("--cell", 300)
     caption = 26
+    name = sys.argv[sys.argv.index("--name") + 1] if "--name" in sys.argv else "thumb.jpg"
     out.mkdir(parents=True, exist_ok=True)
-    ids = sorted(p.parent.name for p in thumbs.glob("*/thumb.jpg"))
+    ids = sorted(p.parent.name for p in thumbs.glob(f"*/{name}"))
     try:
         font = ImageFont.truetype("arialbd.ttf", 20)
     except OSError:
@@ -36,7 +38,7 @@ def main():
         draw = ImageDraw.Draw(sheet)
         for k, oid in enumerate(ids[s:s + per_sheet]):
             x, y = (k % per_row) * cell, (k // per_row) * (cell + caption)
-            with Image.open(thumbs / oid / "thumb.jpg") as im:
+            with Image.open(thumbs / oid / name) as im:
                 im = ImageOps.contain(im.convert("RGB"), (cell - 8, cell - 8))
             sheet.paste(im, (x + (cell - im.width) // 2, y + (cell - im.height) // 2))
             draw.text((x + cell // 2, y + cell + caption // 2 - 2), oid, fill="black", font=font, anchor="mm")

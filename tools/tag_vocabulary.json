@@ -1,5 +1,5 @@
 {
-  "about": "Controlled vocabulary for image tags. Only these tags can ever be assigned. A 'single' facet gets exactly one tag per image; a 'multi' facet gets between none and 'max' tags. The definitions are the instructions followed when labelling, by a person or by a model. Colour is measured from the pixels and is not labelled by hand. Change a label or definition here, correct the labels in data/tags/labels.csv, and re-run tools/tag_images.py.",
+  "about": "Controlled vocabulary for image tags. Only these tags can ever be assigned. A 'single' facet gets exactly one tag per image; a 'multi' facet gets between none and 'max' tags. The definitions are the instructions followed when labelling. Colour is measured from the pixels and is not labelled by hand. Change a label or definition here, correct the labels in data/tags/labels.csv, and re-run tools/tag_images.py.",
   "model": "google/siglip2-so400m-patch16-384",
   "facets": [
     {
