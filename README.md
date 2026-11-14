@@ -198,7 +198,16 @@ Run the steps in order from the repository root. Every script can be re-run.
    python tools/make_annotations.py ../data ../work <public bucket address>
    ```
 
-10. **Mirror the data folder to the bucket** (see above), then commit and push the
+10. **Refresh "Looks like" and "Reads like".** Compares every object's first
+    page image (SigLIP 2 embeddings) and every object's text (word weights),
+    and writes each object's nearest neighbours to `web/related/related.json`
+    in the bucket, which the item pages read without a new build.
+
+    ```sh
+    python tools/make_related.py ../data ../work <public bucket address>
+    ```
+
+11. **Mirror the data folder to the bucket** (see above), then commit and push the
    regenerated pages.
 
 ## The original site's arrangement

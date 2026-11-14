@@ -1219,3 +1219,64 @@ body.canopy-type-work main dt {
   font-size: 0.85rem;
   opacity: 0.7;
 }
+
+/* "Looks like" and "Reads like" on item pages */
+.sic-related {
+  margin-top: 2rem;
+  display: grid;
+  gap: 1.75rem;
+}
+
+.sic-related__row h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 400;
+}
+
+.sic-related__row p {
+  margin: 0.15rem 0 0.8rem;
+  font-size: 0.82rem;
+  opacity: 0.7;
+}
+
+.sic-related__row ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.9rem;
+}
+
+.sic-related__row li {
+  margin: 0;
+  padding: 0;
+}
+
+.sic-related__row a {
+  display: grid;
+  gap: 0.4rem;
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.sic-related__row a:hover span {
+  color: var(--color-accent-default);
+}
+
+.sic-related__row img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: top;
+  border: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.sic-related__about {
+  margin: 0;
+  font-size: 0.78rem;
+  opacity: 0.6;
+}

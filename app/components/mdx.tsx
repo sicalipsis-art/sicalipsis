@@ -11,5 +11,6 @@ export const clientComponents = {
   GalleryWalk: "./GalleryWalk.client.tsx",
   ViewerZoom: "./ViewerZoom.client.tsx",
   ItemText: "./ItemText.client.tsx",
+  RelatedByContent: "./RelatedByContent.client.tsx",
   CollectionSearch: "./CollectionSearch.client.tsx",
 };

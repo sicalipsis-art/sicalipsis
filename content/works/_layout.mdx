@@ -20,6 +20,7 @@ import {
     />
     <ViewerZoom />
     <ItemText src={((props.manifest.seeAlso || []).find((link) => link.format === "text/plain") || {}).id || ""} />
+    <RelatedByContent manifest={props.manifest.id} />
   </div>
   <div className="canopy-work--secondary">
     <header>
