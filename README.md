@@ -37,7 +37,7 @@ when it is built.
 | `content/` | Pages. `index.mdx`, `about/`, `_app.mdx` and the layouts are hand-written; `collections/<section>.mdx` are generated. |
 | `app/styles/custom.css` | The site's look. |
 | `app/components/` | Custom components (`SectionCards`). |
-| `app/components/GalleryWalk.client.tsx` | The walk-through gallery (three.js): the published works staged as an exhibition, in rooms ordered by period and grouped by collection and series, with a marked route, title walls, full screen, and a list view as the accessible alternative. Reads `web/walk/works.json` from the bucket. |
+| `app/components/GalleryWalk.client.tsx` | The walk-through gallery (three.js): the published works staged as an exhibition, in rooms ordered by period and grouped by collection and series, which the visitor roams freely (drag to look, keys or a click on the floor to walk), with a suggested route, title walls, full screen, a viewer inside the gallery for looking at a work up close (zoom, pages), and a list view as the accessible alternative. Reads `web/walk/works.json` from the bucket. |
 | `app/data/gallery_periods.json` | The gallery's periods (titles and year boundaries) and room size. The period titles are placeholders for the project team to rewrite. |
 | `app/data/sections.json` | Section cards for the home page. Generated. |
 | `app/data/site.json` | The bucket's public `web/` address, for components. Generated. |

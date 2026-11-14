@@ -558,3 +558,130 @@ body.canopy-type-work main dt {
   text-transform: uppercase;
   color: var(--color-gray-muted);
 }
+
+/* Gallery walk: free movement controls and the in-gallery viewer */
+
+.sic-walk__canvas {
+  cursor: grab;
+  touch-action: none;
+}
+
+.sic-walk__scrub {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.sic-walk__pad {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0 auto;
+}
+
+.sic-walk__pad button {
+  min-width: 2.6rem;
+  font-size: 0.95rem;
+  touch-action: none;
+  user-select: none;
+}
+
+.sic-walk__open {
+  background: var(--color-accent-default) !important;
+  border-color: var(--color-accent-default) !important;
+  color: #17120a !important;
+  font-weight: 600;
+}
+
+.sic-viewer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: rgb(9 8 7 / 0.97);
+  color: #f1ebe2;
+  outline: none;
+}
+
+.sic-viewer__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1.25rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.sic-viewer__title {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.sic-viewer__title strong {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.sic-viewer__title span,
+.sic-viewer__page {
+  font-size: 0.78rem;
+  color: #cfc5b6;
+}
+
+.sic-viewer__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sic-viewer__tools button,
+.sic-viewer__tools a {
+  font: inherit;
+  font-size: 0.78rem;
+  color: #f1ebe2;
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.18);
+  padding: 0.4rem 0.75rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sic-viewer__tools button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.sic-viewer__close {
+  background: var(--color-accent-default) !important;
+  border-color: var(--color-accent-default) !important;
+  color: #17120a !important;
+  font-weight: 600;
+}
+
+.sic-viewer__frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.sic-viewer__frame img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform-origin: center;
+  transition: opacity 200ms ease;
+  user-select: none;
+}
+
+.sic-viewer__pages {
+  width: calc(100% - 2rem);
+  margin: 0.5rem 1rem 0.8rem;
+  accent-color: var(--color-accent-default);
+}
