@@ -85,18 +85,32 @@ def render(row, src, out, keep_pdf_copy=True):
     return result
 
 
-def write_manifest(row, rendered, out, base, pdf_url=None):
-    """Write the object's manifest; return its entry for the collection."""
-    oid = row["objectid"]
-    pages, (tw, th) = rendered["pages"], rendered["thumb"]
-    mid = f"{base}/iiif/{oid}/manifest.json"
-    row = dict(row, year=row["date"][:4], date_display=row["date_original"] or row["date"])
+def describe(row):
+    """The descriptive part of a manifest, from a spreadsheet row: label, metadata,
+    summary and navDate. Shared by write_manifest and refresh_manifests.py."""
+    firm = row.get("date_certainty") != "estimated"
+    row = dict(row, year=row["date"][:4] if firm else "",
+               date_display=row.get("date_display") or row["date"])
     metadata = []
     for label, col, split in FIELDS:
         values = [v.strip() for v in row[col].split(";")] if split else [row[col].strip()]
         values = [v for v in values if v]
         if values:
             metadata.append({"label": {"en": [label]}, "value": {"none": values}})
+    out = {"label": {"none": [row["title"]]}, "metadata": metadata}
+    if row["description"]:
+        out["summary"] = {"none": [row["description"]]}
+    if firm and len(row["date"]) >= 4:  # an estimated year is shown in words, not as a machine date
+        out["navDate"] = (row["date"] + "-01-01")[:10] + "T00:00:00Z"
+    return out
+
+
+def write_manifest(row, rendered, out, base, pdf_url=None):
+    """Write the object's manifest; return its entry for the collection."""
+    oid = row["objectid"]
+    pages, (tw, th) = rendered["pages"], rendered["thumb"]
+    mid = f"{base}/iiif/{oid}/manifest.json"
+    described = describe(row)
     canvases = []
     for n, (name, w, h) in enumerate(pages, 1):
         cid = f"{base}/iiif/{oid}/canvas/{n}"
@@ -115,16 +129,15 @@ def write_manifest(row, rendered, out, base, pdf_url=None):
         })
     m = {
         "@context": "http://iiif.io/api/presentation/3/context.json",
-        "id": mid, "type": "Manifest", "label": {"none": [row["title"]]},
-        "metadata": metadata,
+        "id": mid, "type": "Manifest", "label": described["label"],
+        "metadata": described["metadata"],
         "thumbnail": [{"id": f"{base}/images/{oid}/thumb.jpg", "type": "Image",
                        "format": "image/jpeg", "width": tw, "height": th}],
         "items": canvases,
     }
-    if row["description"]:
-        m["summary"] = {"none": [row["description"]]}
-    if len(row["date"]) >= 4:
-        m["navDate"] = (row["date"] + "-01-01")[:10] + "T00:00:00Z"
+    for key in ("summary", "navDate"):
+        if key in described:
+            m[key] = described[key]
     if row["format"] == "application/pdf":
         m["rendering"] = [{"id": pdf_url or f"{base}/files/{oid}.pdf", "type": "Text",
                            "label": {"en": ["Download PDF"]}, "format": "application/pdf"}]

@@ -11,6 +11,10 @@ extra PDFs and gallery images as new objects, novelette page images as children
 box_path and r2_key keep the exact characters Box uses (some accents are stored
 in decomposed form), so they match the stored objects byte for byte.
 
+Dates are standardised, and missing ones worked out, by dates.py; pass
+--texts <dir> (holding text/<objectid>.txt and ocr/<objectid>.txt) to let it also
+read dates printed in the documents themselves.
+
 The URL columns (object_location, image_small, image_thumb) stay empty until the
 file store has a public address; r2_key says where each file is in the bucket.
 """
@@ -22,12 +26,17 @@ from collections import Counter
 from difflib import SequenceMatcher
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import dates  # noqa: E402
+
 data = Path(sys.argv[1])
 out_csv = Path(sys.argv[2])
+text_dir = Path(sys.argv[sys.argv.index("--texts") + 1]) if "--texts" in sys.argv else None
 rec = data / "reconciliation"
 
 COLUMNS = [
-    "objectid", "parentid", "title", "creator", "date", "date_original", "date_basis",
+    "objectid", "parentid", "title", "creator", "date", "date_display", "date_certainty",
+    "date_range", "date_basis", "date_original",
     "description", "subject", "publisher", "contributor", "source", "relation",
     "identifier", "type", "format", "section", "series", "collection",
     "display_template", "object_location", "image_small", "image_thumb",
@@ -57,18 +66,6 @@ SECTION_OF_TAG = {
     "erotic novelette": "Erotic Novelettes", "essays": ESSAYS, "sexology": ESSAYS,
     "nudism & naturism": "Nudism & Naturism", "erotic magazine": "Erotic Magazines",
 }
-MONTHS = {}
-for i, names in enumerate([
-    "enero january jan ene", "febrero february feb", "marzo march mar", "abril april apr abr",
-    "mayo may", "junio june jun", "julio july jul", "agosto august aug ago",
-    "septiembre setiembre september sept sep", "octubre october oct",
-    "noviembre november nov", "diciembre december dec dic"], 1):
-    for n in names.split():
-        MONTHS[n] = i
-YEAR = r"(?<!\d)(18[89]\d|19[0-3]\d)(?!\d)"   # collection period, for guesses from titles
-ANY_YEAR = r"(?<!\d)(1[89]\d\d|20[0-2]\d)(?!\d)"  # Omeka's own date field
-
-
 def read_csv(path):
     with open(path, encoding="utf-8-sig", newline="") as fh:
         return list(csv.DictReader(fh))
@@ -86,30 +83,6 @@ def fold(s):
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c)).lower()
     return re.sub(r"[^a-z0-9]+", " ", s).strip()
-
-
-def parse_date(text, year_pattern=YEAR):
-    """Return an ISO date (yyyy, yyyy-mm or yyyy-mm-dd) or '' when unsure."""
-    t = fold(text)
-    if not t:
-        return ""
-    years = re.findall(year_pattern, t)
-    if len(set(years)) != 1:
-        return ""  # no year, or a range such as 1932/33: leave for a person
-    year = years[0]
-    words = t.split()
-    month = next((MONTHS[w] for w in words if w in MONTHS), None)
-    if month is None:
-        return year
-    days = [int(w) for w in words if w.isdigit() and 1 <= int(w) <= 31 and len(w) <= 2]
-    if len(days) == 1:
-        return f"{year}-{month:02d}-{days[0]:02d}"
-    return f"{year}-{month:02d}"
-
-
-def year_in(text):
-    years = set(re.findall(YEAR, fold(text)))
-    return years.pop() if len(years) == 1 else ""
 
 
 items = read_csv(data / "omeka" / "items.csv")
@@ -149,18 +122,11 @@ for it in sorted(items, key=lambda r: int(r["item_id"])):
         section = next((SECTION_OF_TAG[t.lower()] for t in it["tags"].split(" | ")
                         if t.lower() in SECTION_OF_TAG), "")
     title = re.sub(r"\.pdf?$", "", clean(it.get("dc_title", "")), flags=re.I)
-    date = parse_date(it.get("dc_date", ""), ANY_YEAR)
-    basis = "Omeka date field" if date else ""
-    if not date and year_in(title):
-        date, basis = year_in(title), "year in Omeka title"
-    if not date and box and year_in(box["box_path"].rsplit("/", 1)[-1]):
-        name = box["box_path"].rsplit("/", 1)[-1].rsplit(".", 1)[0].replace("_", " ")
-        date, basis = parse_date(name) or year_in(name), "Box file name"
     ext = (box["ext"] if box else (f["ext"] if f else ""))
     rows.append({
         "objectid": objectid, "title": title or "[Untitled]",
-        "creator": clean(it.get("dc_creator", "")), "date": date,
-        "date_original": clean(it.get("dc_date", "")), "date_basis": basis,
+        "creator": clean(it.get("dc_creator", "")),
+        "date_original": clean(it.get("dc_date", "")),
         "description": clean(it.get("dc_description", "")),
         "subject": "; ".join(x for x in [clean(it.get("dc_subject", "")).replace(" | ", "; "),
                                          clean(it["tags"]).replace(" | ", "; ")] if x),
@@ -193,8 +159,6 @@ for b in box_files:
     name = stem.replace("_", " ")
     new_rows.append({
         "objectid": objectid, "title": clean(title.replace("_", " ")),
-        "date": parse_date(name) or year_in(name),
-        "date_basis": "Box file name" if year_in(name) else "",
         "format": {"pdf": "application/pdf", "jpg": "image/jpeg"}[b["ext"]],
         "section": SECTION_OF_BOX[b["section"]], "series": nfc(b["series"]),
         "display_template": {"pdf": "pdf", "jpg": "image"}[b["ext"]],
@@ -259,6 +223,15 @@ for r in everything:  # identical files stored twice in Box share a hash; keep i
     if seen[r["objectid"]] > 1:
         seen[r["objectid"]] -= 1
         r["objectid"] = f"{r['objectid']}x{seen[r['objectid']]}"
+# Dates: standardise what is recorded, then work out what is missing (see dates.py).
+texts = {}
+if text_dir:
+    for kind in ("text", "ocr"):  # OCR text, where it exists, replaces the PDF's own text layer
+        for path in sorted((text_dir / kind).glob("*.txt")):
+            content = path.read_text(encoding="utf-8", errors="replace")
+            if len(content) > 200:
+                texts[path.stem] = content
+date_tally = dates.resolve(rows + new_rows, texts)
 out_csv.parent.mkdir(parents=True, exist_ok=True)
 with open(out_csv, "w", encoding="utf-8-sig", newline="") as fh:
     w = csv.DictWriter(fh, fieldnames=COLUMNS, restval="")
@@ -272,8 +245,9 @@ print(f"  novelette page images   : {len(children)} ({orphans} without a parent 
 print(f"unique objectids          : {len({r['objectid'] for r in everything})}")
 print("file status               :", dict(Counter(r["file_status"] for r in rows)))
 print("section (Omeka items)     :", dict(Counter(r["section"] or "(none)" for r in rows)))
-print("dates (Omeka items)       :", dict(Counter(r["date_basis"] or "no date" for r in rows)))
-print("date precision            :", dict(Counter({4: "year", 7: "month", 10: "day", 0: "none"}[len(r["date"])] for r in rows)))
-bad = [r["date_original"] for r in rows if r["date_original"] and r["date_basis"] != "Omeka date field"]
-print(f"Omeka dates not parsed    : {len(bad)}  e.g. {bad[:8]}")
+objects = rows + new_rows
+print("dates                     :", date_tally, f"(document text read for {len(texts)} objects)")
+print("date precision            :", dict(Counter({4: "year", 7: "month", 10: "day", 0: "none"}[len(r["date"])] for r in objects)))
+left = [r["date_original"] for r in objects if r.get("date_original") and not r["date"]]
+print(f"recorded dates not usable : {len(left)}  {left[:6]}")
 print("compound objects          :", sum(1 for r in rows + new_rows if r["display_template"] == "compound_object"))

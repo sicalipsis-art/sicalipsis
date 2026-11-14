@@ -483,3 +483,78 @@ body.canopy-type-work main dt {
 .sic-walk__list small {
   color: var(--color-gray-muted);
 }
+
+/* Gallery walk: rooms, full screen */
+
+.sic-walk__where {
+  position: absolute;
+  top: 1rem;
+  left: 1.25rem;
+  display: grid;
+  gap: 0.15rem;
+  max-width: 60%;
+  color: #f1ebe2;
+  pointer-events: none;
+  text-shadow: 0 2px 16px rgb(0 0 0 / 0.8);
+}
+
+.sic-walk__where span {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #d9a441;
+}
+
+.sic-walk__where strong {
+  font-family: var(--font-serif);
+  font-size: clamp(1.4rem, 3.2vw, 2.4rem);
+  font-weight: 400;
+  line-height: 1.05;
+}
+
+.sic-walk__where em {
+  font-size: 0.85rem;
+  font-style: normal;
+  color: #cfc5b6;
+}
+
+.sic-walk__full,
+.sic-walk__scrub button {
+  font: inherit;
+  font-size: 0.75rem;
+  color: #f1ebe2;
+  background: rgb(20 17 15 / 0.8);
+  border: 1px solid rgb(255 255 255 / 0.18);
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.sic-walk__full {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  z-index: 2;
+}
+
+.sic-walk__scrub button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.sic-walk__stage:fullscreen {
+  width: 100vw;
+}
+
+.sic-walk__bar select {
+  max-width: 22rem;
+}
+
+.sic-walk__list h3 small {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-gray-muted);
+}

@@ -27,8 +27,9 @@ for r in rows:
     thumb = state[r["objectid"]]["ref"]["thumbnail"][0]
     works.append({
         "id": r["objectid"], "title": r["title"], "creator": r["creator"],
-        "date": r["date_original"] or r["date"], "sort": r["date"] or "9999",
-        "year": r["date"][:4], "section": r["section"], "series": r["series"],
+        "date": r.get("date_display") or r["date"], "sort": r["date"] or "9999",
+        "year": r["date"][:4], "estimated": r.get("date_certainty") == "estimated",
+        "section": r["section"], "series": r["series"],
         "thumb": f"{base}/images/{r['objectid']}/thumb.jpg",
         "image": f"{base}/images/{r['objectid']}/0001.jpg",
         "w": thumb["width"], "h": thumb["height"], "pages": state[r["objectid"]]["pages"],
