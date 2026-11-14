@@ -1,0 +1,7 @@
+navigation:
+  - href: /collections
+    label: Collections
+  - href: /search
+    label: Search
+  - href: /about
+    label: About

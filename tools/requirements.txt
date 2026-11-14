@@ -1,0 +1,4 @@
+# Python packages used by the scripts in this folder.
+Pillow
+PyMuPDF
+openpyxl

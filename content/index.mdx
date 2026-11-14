@@ -1,0 +1,35 @@
+---
+title: Sicalipsis
+description: A Virtual Wunderkammer of early twentieth-century erotica in Spain.
+---
+
+<Interstitials.Hero
+  headline="Sicalipsis"
+  description="A Virtual Wunderkammer: early twentieth-century erotica in Spain. Images, magazines, novelettes and essays, gathered for reading and research."
+  background="theme"
+  random={true}
+  links={[
+    {
+      href: "/collections",
+      title: "Explore the collections",
+      type: "primary",
+    },
+    {
+      href: "/search",
+      title: "Search everything",
+      type: "secondary",
+    },
+  ]}
+/>
+
+<Container variant="wide">
+
+<h2 className="sic-section-title">Collections</h2>
+
+<SectionCards />
+
+<h2 className="sic-section-title">From the collection</h2>
+
+<RelatedItems top={3} />
+
+</Container>

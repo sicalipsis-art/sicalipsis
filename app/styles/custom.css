@@ -1,0 +1,277 @@
+/**
+ * Sicalipsis look: a dark, image-led gallery. Colours come from the theme in
+ * canopy.yml (dark appearance, amber accent, sand gray); this file sets type,
+ * the masonry grids and the page furniture.
+ * @see https://nulib-ds.github.io/canopy/docs/theme/#override-order
+ */
+
+@layer properties {
+  :root,
+  :host {
+    --font-sans: "Inter", system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+    --sic-gap: clamp(0.6rem, 1.2vw, 1rem);
+    --sic-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+/* ---------- Type ---------- */
+
+body {
+  background: var(--color-gray-50);
+  -webkit-font-smoothing: antialiased;
+}
+
+main h1 {
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  font-variation-settings: "SOFT" 50, "WONK" 1;
+}
+
+.sic-eyebrow,
+.sic-count,
+.sic-section-title,
+.canopy-header__desktop-nav a,
+.canopy-button,
+body.canopy-type-work main dt,
+.canopy-card figcaption > span + span {
+  font-family: var(--font-sans);
+}
+
+.sic-eyebrow {
+  margin: 0 0 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-accent-default);
+}
+
+.sic-count {
+  margin: 0.9rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-gray-muted);
+}
+
+.sic-page-header {
+  padding: clamp(2.5rem, 7vw, 5rem) 0 clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.sic-page-header h1 {
+  margin: 0;
+}
+
+.sic-section-title {
+  margin: clamp(2.5rem, 6vw, 4.5rem) 0 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-gray-muted);
+}
+
+/* ---------- Header and footer ---------- */
+
+.canopy-header {
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.canopy-header__brand-link {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.canopy-header__desktop-nav a {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.canopy-footer {
+  margin-top: clamp(4rem, 10vw, 8rem);
+  border-top: 1px solid var(--color-gray-200);
+  color: var(--color-gray-muted);
+  font-size: 0.9rem;
+}
+
+.canopy-footer p {
+  margin: 0.15rem 0;
+}
+
+.sic-footer__title {
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  color: var(--color-gray-900);
+}
+
+.sic-footer__note {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+/* ---------- Section cards (home, collections) ---------- */
+
+.sic-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--sic-gap);
+  margin: 0;
+  padding: 0;
+}
+
+.sic-section {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: var(--color-gray-100);
+  color: #fff;
+  text-decoration: none;
+}
+
+.sic-section img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.85);
+  transition: transform 700ms var(--sic-ease), filter 700ms var(--sic-ease);
+}
+
+.sic-section::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.82) 0%, rgb(0 0 0 / 0.25) 45%, rgb(0 0 0 / 0) 70%);
+}
+
+.sic-section__text {
+  position: absolute;
+  z-index: 1;
+  left: 1.1rem;
+  right: 1.1rem;
+  bottom: 1rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.sic-section__name {
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.sic-section__count {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.sic-section:hover img,
+.sic-section:focus-visible img {
+  transform: scale(1.05);
+  filter: saturate(1);
+}
+
+.sic-section:focus-visible {
+  outline: 2px solid var(--color-accent-default);
+  outline-offset: 3px;
+}
+
+/* ---------- Work grids: masonry that keeps each image's own shape ---------- */
+
+.referenced-items {
+  margin: 0;
+}
+
+.referenced-items__grid {
+  display: block;
+  columns: 4 240px;
+  column-gap: var(--sic-gap);
+}
+
+.referenced-items__item {
+  display: block;
+  break-inside: avoid;
+  margin: 0 0 var(--sic-gap);
+}
+
+.canopy-card {
+  border: 0;
+  background: transparent;
+}
+
+.canopy-card .canopy-card-media {
+  background: var(--color-gray-100);
+}
+
+.canopy-card .canopy-card-media > img {
+  transition: opacity 500ms var(--sic-ease), transform 700ms var(--sic-ease);
+}
+
+.canopy-card:hover .canopy-card-media > img,
+.canopy-card:focus-visible .canopy-card-media > img {
+  transform: scale(1.04);
+}
+
+.canopy-card figcaption {
+  padding: 0.6rem 0.1rem 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.canopy-card figcaption > span + span {
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--color-gray-muted);
+}
+
+/* ---------- Work page: the viewer leads ---------- */
+
+.canopy-work--layout {
+  padding-top: clamp(1rem, 3vw, 2rem);
+}
+
+@media (min-width: 961px) {
+  .canopy-work--layout > .canopy-work--primary {
+    flex: 1 1 62%;
+    position: sticky;
+    top: 1rem;
+  }
+
+  .canopy-work--layout > .canopy-work--secondary {
+    flex: 1 1 38%;
+  }
+}
+
+body.canopy-type-work main h1 {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  margin: 0 0 1rem;
+}
+
+body.canopy-type-work main dl > div {
+  border-top: 1px solid var(--color-gray-200);
+}
+
+body.canopy-type-work main dt {
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sic-section img,
+  .canopy-card .canopy-card-media > img {
+    transition: none;
+  }
+}

@@ -1,0 +1,39 @@
+title: Sicalipsis
+collection:
+  - http://localhost:5002/iiif/collection.json
+metadata:
+  - Section
+  - Series
+  - Creator
+  - Year
+  - Type
+featured:
+  - http://localhost:5002/iiif/sic00009/manifest.json
+  - http://localhost:5002/iiif/sic00008/manifest.json
+  - http://localhost:5002/iiif/sic00001/manifest.json
+  - http://localhost:5002/iiif/sic00002/manifest.json
+  - http://localhost:5002/iiif/sic00010/manifest.json
+  - http://localhost:5002/iiif/sic00003/manifest.json
+search:
+  page:
+    title: Search
+    description: Search the whole collection.
+  results:
+    work:
+      layout: grid
+      result: figure
+    page:
+      layout: list
+      result: article
+  index:
+    metadata:
+      enabled: true
+      all: true
+    summary:
+      enabled: true
+    annotations:
+      enabled: false
+theme:
+  appearance: dark
+  accentColor: amber
+  grayColor: sand

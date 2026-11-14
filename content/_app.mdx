@@ -1,0 +1,49 @@
+import {Meta, Stylesheet} from "@canopy-iiif/app/head";
+import {CanopyHeader, CanopyFooter} from "@canopy-iiif/app/ui";
+
+export function Head() {
+  return (
+    <>
+      <Meta siteTitle="Sicalipsis" />
+      <Stylesheet />
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossOrigin="true"
+      />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..600,50,0..1;1,9..144,300..600,50,0..1&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet"
+      />
+    </>
+  );
+}
+
+export function App({children}) {
+  return (
+    <>
+      <CanopyHeader logo={Logo} />
+      <main>{children}</main>
+      <CanopyFooter>
+        <p className="sic-footer__title">Sicalipsis</p>
+        <p>
+          A Virtual Wunderkammer: Early Twentieth Century Erotica in Spain.
+        </p>
+        <p className="sic-footer__note">
+          Preview build with a sample of the collection. Not yet public.
+        </p>
+      </CanopyFooter>
+    </>
+  );
+}
+
+export const Logo = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+    <circle className="canopy-logo-backlight" cx="250" cy="250" r="250" />
+    <path
+      className="canopy-logo-overlay"
+      d="M250,70 L430,250 L250,430 L70,250 Z"
+    />
+  </svg>
+);

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Image Gallery",
+    "label": "Image Gallery",
+    "href": "/collections/image-gallery",
+    "count": 642,
+    "preview": 24,
+    "image": "http://localhost:5002/images/sic00147/thumb.jpg"
+  },
+  {
+    "name": "Erotic Magazines",
+    "label": "Erotic Magazines",
+    "href": "/collections/erotic-magazines",
+    "count": 113,
+    "preview": 8,
+    "image": "http://localhost:5002/images/sic00001/thumb.jpg"
+  },
+  {
+    "name": "Erotic Novelettes",
+    "label": "Erotic Novelettes",
+    "href": "/collections/erotic-novelettes",
+    "count": 554,
+    "preview": 6,
+    "image": "http://localhost:5002/images/sic00827/thumb.jpg"
+  },
+  {
+    "name": "Essays on Sexuality, Sexology, and Eugenics",
+    "label": "Essays",
+    "href": "/collections/essays",
+    "count": 205,
+    "preview": 4,
+    "image": "http://localhost:5002/images/sic00724/thumb.jpg"
+  },
+  {
+    "name": "Nudism & Naturism",
+    "label": "Nudism & Naturism",
+    "href": "/collections/nudism-and-naturism",
+    "count": 131,
+    "preview": 3,
+    "image": "http://localhost:5002/images/sic00580/thumb.jpg"
+  }
+]
