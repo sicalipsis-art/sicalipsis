@@ -8,22 +8,23 @@ import plan from "../data/gallery_periods.json";
  * visitor is free to roam.
  *
  * The works are arranged by period (app/data/gallery_periods.json) and, within a
- * period, by collection and series. Each group is a room.
+ * period, by collection and series. Each group is a room. Rooms differ: width
+ * and ceiling height vary, each period has its own wall colour, and there are
+ * three kinds of hang (see `kindOf`): a single line, a two-tier "salon" hang for
+ * long runs, and a room divided by a freestanding wall.
  *
  * Moving: drag to look around; W A S D or the arrow keys to walk and turn; the
  * wheel walks forward and back; a click on the floor walks there; a click on a
- * work walks up to it and shows its label. "Open" shows the work in a viewer
- * inside the gallery (zoom, pages, full screen). Buttons step through the works
- * in the suggested order, which a line on the floor also marks.
+ * work walks up to it and shows its label. "Open" (or a second click on the
+ * work) shows it in a viewer inside the gallery: zoom, pages, full screen.
  *
  * Staging choices, from exhibition research and comparable web galleries:
- *  - a suite of rooms with doors on alternating sides, so the exit is never in
- *    view from the entrance (exits compete with exhibits for attention: Melton,
- *    Bitgood) and the visit turns instead of running straight;
+ *  - doors on opposite sides of each room, so the exit is never in view from
+ *    the entrance (exits compete with exhibits for attention: Melton, Bitgood);
  *  - a title wall and one key work face each entrance, in the first sightline;
- *  - a suggested route, but free choice of where to go (free-choice visiting);
- *  - a bench marks the middle of every room; labels sit in the same place under
- *    every work; text is short (Serrell; Smithsonian accessibility guidelines);
+ *  - a suggested route, but free choice of where to go;
+ *  - seating in the rooms; labels in the same place under every work; short
+ *    text (Serrell; Smithsonian accessibility guidelines);
  *  - keys and the wheel are captured only after the visitor steps in;
  *  - every work is also in a plain list by room, the view for screen readers,
  *    keyboards and browsers without WebGL; "reduce motion" removes easing.
@@ -36,32 +37,29 @@ type Work = {
   section: string; series: string; thumb: string; image: string; w: number; h: number; pages: number;
   href?: string;
 };
-type Room = {period: string; title: string; subtitle: string; works: Work[]};
-type Place = {work: Work; room: number; x: number; z: number; facing: number; nx: number; nz: number; width: number; height: number};
-type Shell = {z: number; depth: number; entry: number; index: number};
+type Room = {period: string; tone: number; title: string; subtitle: string; works: Work[]};
+type Place = {work: Work; room: number; x: number; y: number; z: number; facing: number; nx: number; nz: number; width: number; height: number; small: boolean};
+type Rect = {x0: number; x1: number; z0: number; z1: number};
+type Shell = {index: number; z: number; depth: number; half: number; height: number; entry: number; exit: number; kind: string; tone: number; blocks: Rect[]; divider: Rect | null; titleX: number};
 type Point = {x: number; z: number};
 
-const HALF = 6.5;             // half a room's width, metres
-const HEIGHT = 4.6;
 const EYE = 1.62;
-const HANG = 1.58;            // height of each work's centre
+const HANG = 1.58;            // height of a work's centre in a single-line hang
 const STEP = 2.7;             // between works on one wall
-const MAX_W = 2.0;
-const MAX_H = 1.6;
-const DOOR_X = 4;             // doors sit this far left or right of the centre line
 const DOOR_W = 2.4;
 const DOOR_H = 2.9;
 const STAND = 3.0;            // viewing distance from a wall
 const BODY = 0.5;             // how close the visitor can get to a wall
-const WALK = 3.4;             // metres per second
+const WALK = 4.2;             // metres per second
 const NEAR_LOAD = 30;
 const NEAR_SHARP = 6.5;
-const FAR_DROP = 44;
+const FAR_DROP = 46;
+const WALLS = ["#3b332d", "#2f3833", "#3a2e36", "#2d3440", "#40372a", "#333130"];   // one wall colour per period
 
 function makeRooms(works: Work[]): Room[] {
   const rooms: Room[] = [];
   const size = plan.roomSize;
-  for (const period of plan.periods as any[]) {
+  (plan.periods as any[]).forEach((period, tone) => {
     const inPeriod = works.filter((w) => (period.undated ? !w.year : w.year && +w.year >= period.from && +w.year <= period.to));
     const sections = [...plan.sections, ...Array.from(new Set(inPeriod.map((w) => w.section))).filter((s) => !plan.sections.includes(s))];
     for (const section of sections) {
@@ -73,7 +71,7 @@ function makeRooms(works: Work[]): Room[] {
         const years = batch.map((w) => w.year).filter(Boolean).sort();
         const span = years.length ? (years[0] === years[years.length - 1] ? years[0] : `${years[0]} to ${years[years.length - 1]}`) : "";
         const single = series.length === 1 && series[0].toLowerCase() !== section.toLowerCase();
-        rooms.push({period: period.title, title: section, subtitle: [single ? series[0] : "", span].filter(Boolean).join(" · "), works: batch});
+        rooms.push({period: period.title, tone, title: section, subtitle: [single ? series[0] : "", span].filter(Boolean).join(" · "), works: batch});
         batch = [];
       };
       group.forEach((w, i) => {
@@ -84,8 +82,15 @@ function makeRooms(works: Work[]): Room[] {
       });
       flush();
     }
-  }
+  });
   return rooms;
+}
+
+/** Which hang a room gets: long runs are hung salon-style, some mid-sized rooms get a dividing wall. */
+function kindOf(count: number, index: number) {
+  if (count >= 11) return "salon";
+  if (count >= 7 && index % 2 === 1) return "divided";
+  return "line";
 }
 
 function stage(rooms: Room[]) {
@@ -93,37 +98,77 @@ function stage(rooms: Room[]) {
   const route: Point[] = [];
   const shells: Shell[] = [];
   let z = 0;
-  const fit = (w: Work) => {
-    const aspect = w.w / Math.max(1, w.h);
-    let height = MAX_H, width = height * aspect;
-    if (width > MAX_W) { width = MAX_W; height = width / aspect; }
-    return {width, height};
-  };
+  let entry = 4;
   rooms.forEach((room, index) => {
-    const entry = index % 2 === 0 ? DOOR_X : -DOOR_X;   // entrance side alternates
-    const s = Math.sign(entry);
+    const kind = kindOf(room.works.length, index);
+    const half = kind === "divided" ? 7.5 : [6.5, 5.6, 7.2][(index * 2 + room.tone) % 3];
+    const height = [4.6, 5.4, 4.2, 5.0][(index + room.tone * 2) % 4];
+    const nextHalf = index + 1 < rooms.length
+      ? (kindOf(rooms[index + 1].works.length, index + 1) === "divided" ? 7.5 : [6.5, 5.6, 7.2][((index + 1) * 2 + rooms[index + 1].tone) % 3])
+      : half;
+    const reach = Math.min(half, nextHalf) - 1.9;          // how far from the centre a door can sit
+    const s = entry >= 0 ? 1 : -1;
+    const exit = -s * Math.min(reach, index % 3 === 2 ? 3 : 4);
+    const big = {w: 2.0, h: 1.6}, small = {w: 1.35, h: 1.02};
+    const fit = (w: Work, box: {w: number; h: number}) => {
+      const aspect = w.w / Math.max(1, w.h);
+      let height = box.h, width = height * aspect;
+      if (width > box.w) { width = box.w; height = width / aspect; }
+      return {width, height};
+    };
     const rest = room.works.slice(1);
-    const near = rest.slice(0, Math.ceil(rest.length / 2));
-    const far = rest.slice(near.length);
-    const depth = Math.max(9, 2.4 + STEP * Math.max(near.length, 1));
+    const blocks: Rect[] = [];
+    let divider: Rect | null = null;
+    let depth = 9;
+    const hang = (work: Work, x: number, wz: number, nx: number, y = HANG, box = big) => {
+      places.push({work, room: index, x, y, z: wz, facing: nx > 0 ? Math.PI / 2 : nx < 0 ? -Math.PI / 2 : 0, nx, nz: 0, ...fit(work, box), small: box === small});
+    };
+    route.push({x: entry, z: z - 0.9});
+
+    if (kind === "salon") {                                // two tiers on each side wall
+      const perWall = Math.ceil(rest.length / 2);
+      const columns = Math.ceil(perWall / 2);
+      depth = Math.max(10, 3.2 + 1.95 * columns);
+      for (const k of [-1, 1]) {                           // two benches along the middle
+        const bz = z - depth / 2 + k * depth / 5;
+        blocks.push({x0: -0.35, x1: 0.35, z0: bz - 1.1, z1: bz + 1.1});
+      }
+      [rest.slice(0, perWall), rest.slice(perWall)].forEach((list, wallNo) => {
+        const side = wallNo === 0 ? s : -s;
+        list.forEach((work, i) => hang(work, side * (half - 0.07), z - 2.1 - Math.floor(i / 2) * 1.95, -side, i % 2 === 0 ? 2.32 : 1.12, small));
+        if (wallNo === 1) route.push({x: 0, z: z - depth / 2});
+        for (let c = 0; c < Math.ceil(list.length / 2); c++) route.push({x: side * (half - STAND), z: z - 2.1 - c * 1.95});
+      });
+    } else if (kind === "divided") {                       // a freestanding wall down the middle
+      const per = Math.ceil(rest.length / 4);
+      depth = Math.max(13, 8.4 + STEP * per);
+      const top = z - 4.0;                                 // the divider starts here and runs back
+      divider = {x0: -0.15, x1: 0.15, z0: z - depth + 4.4, z1: top};
+      blocks.push(divider);
+      const lists = [rest.slice(0, per), rest.slice(per, 2 * per), rest.slice(2 * per, 3 * per), rest.slice(3 * per)];
+      lists[0].forEach((work, i) => hang(work, s * (half - 0.07), z - 2.2 - i * STEP, -s));              // near wall
+      lists[1].forEach((work, i) => hang(work, s * 0.22, top - 1.3 - i * STEP, s));                       // divider, near face
+      lists[2].forEach((work, i) => hang(work, -s * 0.22, top - 1.3 - i * STEP, -s));                     // divider, far face
+      lists[3].forEach((work, i) => hang(work, -s * (half - 0.07), z - 2.2 - i * STEP, s));               // far wall
+      route.push({x: s * half / 2, z: z - 2.4}, {x: s * half / 2, z: z - depth + 2.6}, {x: -s * half / 2, z: z - depth + 2.6}, {x: -s * half / 2, z: z - 3.0});
+    } else {                                               // a single line along each side wall
+      const near = rest.slice(0, Math.ceil(rest.length / 2));
+      const far = rest.slice(near.length);
+      depth = Math.max(9, 2.4 + STEP * Math.max(near.length, 1));
+      near.forEach((work, i) => { hang(work, s * (half - 0.07), z - 1.9 - i * STEP, -s); route.push({x: s * (half - STAND), z: z - 1.9 - i * STEP}); });
+      route.push({x: 0, z: z - depth / 2 - 1.6});
+      far.forEach((work, i) => { hang(work, -s * (half - 0.07), z - 1.9 - i * STEP, s); route.push({x: -s * (half - STAND), z: z - 1.9 - i * STEP}); });
+      blocks.push({x0: -1.2, x1: 1.2, z0: z - depth / 2 - 0.35, z1: z - depth / 2 + 0.35});   // the bench
+    }
     const back = z - depth;
-    route.push({x: entry, z: z + 0.2}, {x: s * (HALF - STAND), z: z - 1.2});
-    near.forEach((work, i) => {                          // the wall beside the entrance, front to back
-      const wz = z - 1.9 - i * STEP;
-      places.push({work, room: index, x: s * (HALF - 0.07), z: wz, facing: -s * Math.PI / 2, nx: -s, nz: 0, ...fit(work)});
-      route.push({x: s * (HALF - STAND), z: wz});
-    });
-    const hero = room.works[0];                          // the key work, on the title wall facing the entrance
-    places.push({work: hero, room: index, x: entry, z: back + 0.22, facing: 0, nx: 0, nz: 1, ...fit(hero)});   // clear of the wall's thickness
-    route.push({x: entry, z: back + STAND + 0.4}, {x: 0, z: z - depth / 2 - 1.6});
-    far.forEach((work, i) => {                           // the far wall, front to back, ending at the exit
-      const wz = z - 1.9 - i * STEP;
-      places.push({work, room: index, x: -s * (HALF - 0.07), z: wz, facing: s * Math.PI / 2, nx: s, nz: 0, ...fit(work)});
-      route.push({x: -s * (HALF - STAND), z: wz});
-    });
-    route.push({x: -entry, z: back + 1.4});
-    shells.push({z, depth, entry, index});
+    const hero = room.works[0];                            // the key work, on the back wall facing the entrance
+    places.push({work: hero, room: index, x: entry, y: HANG, z: back + 0.22, facing: 0, nx: 0, nz: 1, ...fit(hero, big), small: false});
+    const options = [entry + 3.0, entry - 3.0].filter((x) => Math.abs(x) < half - 1.7 && Math.abs(x - exit) > 2.9 && Math.abs(x) > (divider ? 2 : -1));
+    const titleX = options.length ? options[0] : entry;
+    route.push({x: exit, z: back + 1.4});
+    shells.push({index, z, depth, half, height, entry, exit, kind, tone: room.tone, blocks, divider, titleX});
     z = back;
+    entry = exit;
   });
   return {places, route, shells, end: z};
 }
@@ -162,6 +207,18 @@ function glowTexture() {
   ctx.fillRect(0, 0, 256, 256);
   return new THREE.CanvasTexture(canvas);
 }
+
+const crosses = (a: Point, b: Point, r: Rect) => {        // does the straight line a-b pass through the rectangle?
+  let t0 = 0, t1 = 1;
+  const dx = b.x - a.x, dz = b.z - a.z;
+  for (const [p, q] of [[-dx, a.x - r.x0], [dx, r.x1 - a.x], [-dz, a.z - r.z0], [dz, r.z1 - a.z]]) {
+    if (p === 0) { if (q < 0) return false; continue; }
+    const t = q / p;
+    if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; }
+  }
+  return true;
+};
+const grow = (r: Rect, m: number): Rect => ({x0: r.x0 - m, x1: r.x1 + m, z0: r.z0 - m, z1: r.z1 + m});
 
 /** The work itself, shown inside the gallery: zoom, pan, pages, full screen. */
 function WorkViewer({work, full, onFull, onClose}: {work: Work; full: boolean; onFull: () => void; onClose: () => void}) {
@@ -308,15 +365,26 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+  // The visitor leaves by pressing somewhere outside the gallery (or Esc); using one of
+  // the gallery's own buttons is not leaving it.
+  useEffect(() => {
+    const onPress = (e: PointerEvent) => {
+      if (stageRef.current && !stageRef.current.contains(e.target as Node) && !document.fullscreenElement) setEntered(false);
+    };
+    document.addEventListener("pointerdown", onPress);
+    return () => document.removeEventListener("pointerdown", onPress);
+  }, []);
+  // Back to the hall: keys work again after a button has been used.
+  const refocus = () => { setEntered(true); requestAnimationFrame(() => { if (!viewingRef.current) mount.current?.focus(); }); };
   const toggleFull = () => {
     if (document.fullscreenElement) document.exitFullscreen();
-    else stageRef.current?.requestFullscreen?.().then(() => { setEntered(true); if (!viewingRef.current) mount.current?.focus(); }).catch(() => {});
+    else stageRef.current?.requestFullscreen?.().then(refocus).catch(() => {});
   };
   const fullRef = useRef(toggleFull);
   fullRef.current = toggleFull;
   const openRef = useRef<(w: Work) => void>(() => {});
   openRef.current = (w) => setViewing(w);
-  const closeViewer = () => { setViewing(null); setEntered(true); setTimeout(() => mount.current?.focus(), 0); };
+  const closeViewer = () => { setViewing(null); viewingRef.current = false; refocus(); };
 
   const sections = useMemo(() => ["All", ...Array.from(new Set((works || []).map((w) => w.section)))], [works]);
   const shown = useMemo(() => (works || []).filter((w) => section === "All" || w.section === section), [works, section]);
@@ -334,7 +402,8 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       return;
     }
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    let ratio = Math.min(window.devicePixelRatio, 1.5);
+    renderer.setPixelRatio(ratio);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     el.appendChild(renderer.domElement);
     renderer.domElement.setAttribute("aria-hidden", "true");
@@ -342,16 +411,16 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
     const scene = new THREE.Scene();
     const backdrop = new THREE.Color("#0c0b0a");
     scene.background = backdrop;
-    scene.fog = new THREE.Fog(backdrop, 16, 44);
+    scene.fog = new THREE.Fog(backdrop, 18, 46);
     const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 70);
     camera.rotation.order = "YXZ";
-    scene.add(new THREE.HemisphereLight(0xfff1dc, 0x2a221c, 1.55));
-    const lamp = new THREE.PointLight(0xffe2b8, 18, 20, 1.5);
+    scene.add(new THREE.HemisphereLight(0xfff1dc, 0x2a221c, 1.6));
+    const lamp = new THREE.PointLight(0xffe2b8, 20, 22, 1.5);
     scene.add(lamp);
 
     const dispose: {dispose: () => void}[] = [];
     const keep = <T extends {dispose: () => void}>(x: T) => { dispose.push(x); return x; };
-    const wall = keep(new THREE.MeshStandardMaterial({color: "#3b332d", roughness: 0.95}));
+    const wallMats = WALLS.map((c) => keep(new THREE.MeshStandardMaterial({color: c, roughness: 0.95})));
     const dark = keep(new THREE.MeshStandardMaterial({color: "#14110f", roughness: 1}));
     const floorMat = keep(new THREE.MeshStandardMaterial({color: "#1c1714", roughness: 0.4, metalness: 0.25}));
     const brass = keep(new THREE.MeshBasicMaterial({color: "#8a6a2f"}));
@@ -367,100 +436,130 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       return mesh;
     };
 
-    // Rooms: floor, ceiling, side walls, a back wall with the exit, a title wall, a bench.
+    // ----- Rooms -----
     const {shells, places} = set;
     const last = shells.length - 1;
-    const total = Math.abs(set.end) + 6;
-    box(floorMat, HALF * 2 + 0.6, 0.1, total + 8, 0, -0.05, -total / 2 + 4, scene);
-    box(dark, HALF * 2 + 0.6, 0.1, total + 8, 0, HEIGHT + 0.05, -total / 2 + 4, scene);
     const groups: THREE.Group[] = [];
-    const doorway = (z: number, doorX: number, parent: THREE.Object3D) => {   // a cross wall with one opening
-      const leftEdge = doorX - DOOR_W / 2, rightEdge = doorX + DOOR_W / 2;
-      box(wall, leftEdge + HALF, HEIGHT, 0.3, (-HALF + leftEdge) / 2, HEIGHT / 2, z, parent);
-      box(wall, HALF - rightEdge, HEIGHT, 0.3, (rightEdge + HALF) / 2, HEIGHT / 2, z, parent);
-      box(wall, DOOR_W, HEIGHT - DOOR_H, 0.3, doorX, DOOR_H + (HEIGHT - DOOR_H) / 2, z, parent);
-      box(brass, DOOR_W + 0.16, 0.06, 0.34, doorX, DOOR_H + 0.03, z, parent);
-    };
-    shells.forEach((shell) => {
+    const signs: (null | (() => void))[] = [];        // per room: removes its text panels again
+    shells.forEach((sh) => {
       const g = new THREE.Group();
-      const room = rooms[shell.index];
-      const mid = shell.z - shell.depth / 2;
-      const back = shell.z - shell.depth;
-      box(wall, 0.3, HEIGHT, shell.depth, -HALF - 0.15, HEIGHT / 2, mid, g);
-      box(wall, 0.3, HEIGHT, shell.depth, HALF + 0.15, HEIGHT / 2, mid, g);
-      if (shell.index === 0) box(wall, HALF * 2, HEIGHT, 0.3, 0, HEIGHT / 2, shell.z, g);
-      if (shell.index < last) doorway(back, -shell.entry, g);
-      else box(wall, HALF * 2, HEIGHT, 0.3, 0, HEIGHT / 2, back, g);
-      box(light, 1.4, 0.02, Math.max(3, shell.depth - 5), 0, HEIGHT - 0.02, mid, g);        // ceiling light
-      box(benchMat, 2.4, 0.42, 0.7, 0, 0.21, mid, g);                                        // bench
-      for (const sx of [-1, 1]) box(brass, 0.03, 0.03, shell.depth, sx * (HALF - 0.02), 0.09, mid, g);
-      const s = Math.sign(shell.entry);                                                      // title wall, beside the key work
-      const title = keep(textTexture([
-        {text: `${room.period}`.toUpperCase(), font: "600 34px Inter, Arial, sans-serif", color: "#d9a441"},
-        {text: room.title, font: "500 84px Fraunces, Georgia, serif", color: "#f1ebe2"},
-        {text: room.subtitle || `${room.works.length} works`, font: "400 40px Inter, Arial, sans-serif", color: "#cfc5b6"},
-        {text: `Room ${shell.index + 1} of ${rooms.length} · ${room.works.length} works`, font: "400 28px Inter, Arial, sans-serif", color: "#9a8f80"},
-      ], 1024, 512, "left"));
-      const panel = new THREE.Mesh(unit, keep(new THREE.MeshBasicMaterial({map: title, transparent: true})));
-      panel.scale.set(3.2, 1.6, 1);
-      panel.position.set(shell.entry - s * 3.0, 1.9, back + 0.17);
-      g.add(panel);
-      if (shell.index < last) {                                                              // what is through the exit
-        const next = rooms[shell.index + 1];
-        const sign = keep(textTexture([{text: `Next: ${next.title}${next.subtitle ? " · " + next.subtitle : ""}`, font: "500 40px Inter, Arial, sans-serif", color: "#d9a441"}], 1024, 96));
-        const over = new THREE.Mesh(unit, keep(new THREE.MeshBasicMaterial({map: sign, transparent: true})));
-        over.scale.set(3.2, 0.3, 1);
-        over.position.set(-shell.entry, DOOR_H + 0.42, back + 0.17);
-        g.add(over);
+      const wall = wallMats[sh.tone % wallMats.length];
+      const mid = sh.z - sh.depth / 2;
+      const back = sh.z - sh.depth;
+      box(floorMat, sh.half * 2 + 0.6, 0.1, sh.depth, 0, -0.05, mid, g);
+      box(dark, sh.half * 2 + 0.6, 0.1, sh.depth, 0, sh.height + 0.05, mid, g);
+      box(wall, 0.3, sh.height, sh.depth, -sh.half - 0.15, sh.height / 2, mid, g);
+      box(wall, 0.3, sh.height, sh.depth, sh.half + 0.15, sh.height / 2, mid, g);
+      const cross = (z: number, doorX: number | null, span: number, high: number) => {   // a cross wall, with or without a door
+        if (doorX === null) { box(wall, span * 2 + 0.6, high, 0.3, 0, high / 2, z, g); return; }
+        const l = doorX - DOOR_W / 2, r = doorX + DOOR_W / 2;
+        box(wall, l + span + 0.3, high, 0.3, (-span - 0.3 + l) / 2, high / 2, z, g);
+        box(wall, span + 0.3 - r, high, 0.3, (r + span + 0.3) / 2, high / 2, z, g);
+        box(wall, DOOR_W, high - DOOR_H, 0.3, doorX, DOOR_H + (high - DOOR_H) / 2, z, g);
+        box(brass, DOOR_W + 0.16, 0.06, 0.34, doorX, DOOR_H + 0.03, z, g);
+      };
+      if (sh.index === 0) cross(sh.z, null, sh.half, sh.height);
+      const next = shells[sh.index + 1];
+      cross(back, next ? sh.exit : null, next ? Math.max(sh.half, next.half) : sh.half, next ? Math.max(sh.height, next.height) : sh.height);
+      box(light, sh.kind === "divided" ? 0.5 : 1.4, 0.02, Math.max(3, sh.depth - 5), sh.kind === "divided" ? sh.half / 2 : 0, sh.height - 0.02, mid, g);
+      if (sh.kind === "divided") box(light, 0.5, 0.02, Math.max(3, sh.depth - 5), -sh.half / 2, sh.height - 0.02, mid, g);
+      for (const sx of [-1, 1]) box(brass, 0.03, 0.03, sh.depth, sx * (sh.half - 0.02), 0.09, mid, g);
+      if (sh.divider) {                                // the freestanding wall, a little lower than the room
+        const d = sh.divider;
+        box(wall, 0.3, sh.height - 1.0, d.z1 - d.z0, 0, (sh.height - 1.0) / 2, (d.z0 + d.z1) / 2, g);
+        box(brass, 0.34, 0.05, d.z1 - d.z0, 0, sh.height - 1.0, (d.z0 + d.z1) / 2, g);
+      } else if (sh.kind === "salon") {                // two benches for a long room
+        for (const b of sh.blocks) box(benchMat, 0.7, 0.42, 2.2, 0, 0.21, (b.z0 + b.z1) / 2, g);
+      } else {
+        box(benchMat, 2.4, 0.42, 0.7, 0, 0.21, mid, g);
       }
       scene.add(g);
       groups.push(g);
+      signs.push(null);
     });
+    const dress = (i: number) => {                     // title wall and "next" sign: made when the room comes near
+      if (signs[i]) return;
+      const sh = shells[i], room = rooms[i], back = sh.z - sh.depth;
+      const made: {dispose: () => void}[] = [];
+      const meshes: THREE.Mesh[] = [];
+      const panel = (tex: THREE.Texture, w: number, h: number, x: number, y: number) => {
+        const mat = new THREE.MeshBasicMaterial({map: tex, transparent: true});
+        const mesh = new THREE.Mesh(unit, mat);
+        mesh.scale.set(w, h, 1);
+        mesh.position.set(x, y, back + 0.17);
+        groups[i].add(mesh);
+        made.push(tex, mat);
+        meshes.push(mesh);
+      };
+      if (sh.titleX !== sh.entry) panel(textTexture([
+        {text: `${room.period}`.toUpperCase(), font: "600 34px Inter, Arial, sans-serif", color: "#d9a441"},
+        {text: room.title, font: "500 84px Fraunces, Georgia, serif", color: "#f1ebe2"},
+        {text: room.subtitle || `${room.works.length} works`, font: "400 40px Inter, Arial, sans-serif", color: "#cfc5b6"},
+        {text: `Room ${i + 1} of ${rooms.length} · ${room.works.length} works`, font: "400 28px Inter, Arial, sans-serif", color: "#9a8f80"},
+      ], 1024, 512, "left"), 3.2, 1.6, sh.titleX, 1.9);
+      if (i < last) {
+        const next = rooms[i + 1];
+        panel(textTexture([{text: `Next: ${next.title}${next.subtitle ? " · " + next.subtitle : ""}`, font: "500 40px Inter, Arial, sans-serif", color: "#d9a441"}], 1024, 96),
+          3.2, 0.3, sh.exit, DOOR_H + 0.42);
+      }
+      signs[i] = () => { meshes.forEach((m) => groups[i].remove(m)); made.forEach((d) => d.dispose()); };
+    };
     // A thin line on the floor marks the suggested route.
     scene.add(new THREE.Line(keep(new THREE.BufferGeometry().setFromPoints(set.route.map((p) => new THREE.Vector3(p.x, 0.012, p.z)))),
       keep(new THREE.LineBasicMaterial({color: "#6b5327", transparent: true, opacity: 0.7}))));
 
-    // Works. Pictures and labels are loaded only when the visitor is near.
+    // ----- Works. Pictures and labels are loaded only when the visitor is near, a few at a time. -----
     const glowMat = keep(new THREE.MeshBasicMaterial({map: keep(glowTexture()), transparent: true, depthWrite: false}));
     const blank = keep(new THREE.MeshBasicMaterial({color: "#3a322b"}));
     const frameMat = keep(new THREE.MeshStandardMaterial({color: "#15110e", roughness: 0.6}));
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin("anonymous");
+    const bitmaps = typeof createImageBitmap === "function";   // decode pictures off the main thread where possible
+    const bitmapLoader = new THREE.ImageBitmapLoader();
+    bitmapLoader.setCrossOrigin("anonymous");
+    bitmapLoader.setOptions({imageOrientation: "flipY", premultiplyAlpha: "none"});
+    const plainLoader = new THREE.TextureLoader();
+    plainLoader.setCrossOrigin("anonymous");
     type Hung = {place: Place; art: THREE.Mesh; label: THREE.Mesh; level: number; busy: boolean};
     const hung: Hung[] = places.map((place, index) => {
       const g = new THREE.Group();
-      g.position.set(place.x, HANG, place.z);
+      g.position.set(place.x, place.y, place.z);
       g.rotation.y = place.facing;
       const halo = new THREE.Mesh(unit, glowMat);
-      halo.scale.set(place.width * 2.5, place.height * 2.3, 1);
+      halo.scale.set(place.width * (place.small ? 1.7 : 2.5), place.height * (place.small ? 1.6 : 2.3), 1);
       halo.position.z = 0.005;
       const frame = new THREE.Mesh(unitBox, frameMat);
-      frame.scale.set(place.width + 0.1, place.height + 0.1, 0.05);
+      frame.scale.set(place.width + 0.08, place.height + 0.08, 0.05);
       frame.position.z = 0.02;
       const art = new THREE.Mesh(unit, blank);
       art.scale.set(place.width, place.height, 1);
       art.position.z = 0.05;
       art.userData.index = index;
       const label = new THREE.Mesh(unit, blank);
-      label.scale.set(1.5, 0.24, 1);
-      label.position.set(0, -place.height / 2 - 0.22, 0.03);
+      label.scale.set(place.small ? 1.15 : 1.5, place.small ? 0.184 : 0.24, 1);
+      label.position.set(0, -place.height / 2 - (place.small ? 0.15 : 0.22), 0.03);
       label.visible = false;
       g.add(halo, frame, art, label);
       groups[place.room].add(g);
       return {place, art, label, level: 0, busy: false};
     });
+    let loading = 0;
     const show = (h: Hung, url: string, level: number) => {
-      if (h.busy) return;
+      if (h.busy || loading >= 4) return;
       h.busy = true;
-      loader.load(url, (tex) => {
+      loading++;
+      const done = (tex: THREE.Texture | null) => {
         h.busy = false;
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        const old = h.art.material as THREE.MeshBasicMaterial;
-        h.art.material = new THREE.MeshBasicMaterial({map: tex, toneMapped: false});
-        if (old !== blank) { old.map?.dispose(); old.dispose(); }
+        loading--;
+        if (tex) {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+          const old = h.art.material as THREE.MeshBasicMaterial;
+          h.art.material = new THREE.MeshBasicMaterial({map: tex, toneMapped: false});
+          if (old !== blank) { old.map?.dispose(); old.dispose(); }
+        }
         h.level = level;
-      }, undefined, () => { h.busy = false; h.level = level; });
+      };
+      if (bitmaps) bitmapLoader.load(url, (bitmap) => { const t = new THREE.Texture(bitmap as any); t.needsUpdate = true; done(t); }, undefined, () => done(null));
+      else plainLoader.load(url, done, undefined, () => done(null));
       if (!h.label.visible) {
         const w = h.place.work;
         const tex = textTexture([
@@ -482,6 +581,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
     // ----- The visitor: position, heading, and what stops them walking through walls. -----
     const pos = {x: shells[0].entry, z: shells[0].z - 1.4};
     let yaw = 0, pitch = 0;                           // yaw 0 looks down the suite of rooms
+    let speed = 0, strafe = 0, spin = 0;              // current forward, sideways and turning speeds
     let focus = -1;
     let auto: {points: Point[]; face: Place | null} | null = null;
     let push = 0;                                     // momentum from the wheel
@@ -492,28 +592,55 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
     };
     const turnTo = (from: number, to: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
     const heading = (dx: number, dz: number) => Math.atan2(-dx, -dz);
+    const gap = DOOR_W / 2 - 0.3;
     const constrain = (x: number, z: number) => {     // keep inside the rooms; cross walls only at doors
       const sh = shells[roomOf(pos.z)];
       const front = sh.z, back = sh.z - sh.depth;
-      const gap = DOOR_W / 2 - 0.3;
-      x = Math.max(-HALF + BODY, Math.min(HALF - BODY, x));
-      if (z < back + BODY && !(sh.index < last && Math.abs(x + sh.entry) < gap)) z = back + BODY;
+      x = Math.max(-sh.half + BODY, Math.min(sh.half - BODY, x));
+      if (z < back + BODY && !(sh.index < last && Math.abs(x - sh.exit) < gap)) z = back + BODY;
       if (z > front - BODY && !(sh.index > 0 && Math.abs(x - sh.entry) < gap)) z = front - BODY;
-      if (Math.abs(z - back) < BODY && sh.index < last) x = Math.max(-sh.entry - gap, Math.min(-sh.entry + gap, x));
+      if (Math.abs(z - back) < BODY && sh.index < last) x = Math.max(sh.exit - gap, Math.min(sh.exit + gap, x));
       if (Math.abs(z - front) < BODY && sh.index > 0) x = Math.max(sh.entry - gap, Math.min(sh.entry + gap, x));
-      const mid = sh.z - sh.depth / 2;                // step round the bench
-      if (Math.abs(x) < 1.2 + 0.4 && Math.abs(z - mid) < 0.35 + 0.4) {
-        if (Math.abs(pos.z - mid) >= 0.75) z = mid + Math.sign(pos.z - mid) * 0.75;
-        else x = Math.sign(pos.x || 1) * 1.6;
+      for (const b of sh.blocks) {                    // benches and dividing walls: slide along them
+        const r = grow(b, 0.4);
+        if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) {
+          if (pos.x <= r.x0 || pos.x >= r.x1) x = pos.x <= r.x0 ? r.x0 : r.x1;
+          else z = pos.z <= r.z0 ? r.z0 : r.z1;
+        }
       }
       return {x, z};
     };
+    const around = (a: Point, b: Point, blocks: Rect[]): Point[] => {   // step round anything in the way
+      for (const block of blocks) {
+        const r = grow(block, 0.55);
+        if (!crosses(a, b, r)) continue;
+        const o = grow(block, 0.8);
+        const corners = [{x: o.x0, z: o.z0}, {x: o.x1, z: o.z0}, {x: o.x1, z: o.z1}, {x: o.x0, z: o.z1}];
+        const len = (path: Point[]) => path.reduce((sum, p, i) => sum + (i ? Math.hypot(p.x - path[i - 1].x, p.z - path[i - 1].z) : 0), 0);
+        let best: Point[] | null = null;
+        for (let i = 0; i < 4; i++) {
+          const one = [a, corners[i], b];
+          if (!crosses(a, corners[i], r) && !crosses(corners[i], b, r) && (!best || len(one) < len(best))) best = one;
+        }
+        if (!best) for (let i = 0; i < 4; i++) for (const j of [(i + 1) % 4, (i + 3) % 4]) {
+          const two = [a, corners[i], corners[j], b];
+          if (!crosses(a, corners[i], r) && !crosses(corners[j], b, r) && (!best || len(two) < len(best))) best = two;
+        }
+        if (best) return best.slice(1, -1);
+      }
+      return [];
+    };
     const walkTo = (x: number, z: number, face: Place | null) => {   // through the doors, room by room
-      const points: Point[] = [];
+      const legs: Point[] = [{x: pos.x, z: pos.z}];
       const from = roomOf(pos.z), to = roomOf(z);
-      for (let k = from; k < to; k++) { const b = shells[k].z - shells[k].depth; points.push({x: -shells[k].entry, z: b + 0.9}, {x: -shells[k].entry, z: b - 0.9}); }
-      for (let k = from; k > to; k--) { const f = shells[k].z; points.push({x: shells[k].entry, z: f - 0.9}, {x: shells[k].entry, z: f + 0.9}); }
-      points.push({x, z});
+      for (let k = from; k < to; k++) { const b = shells[k].z - shells[k].depth; legs.push({x: shells[k].exit, z: b + 0.9}, {x: shells[k].exit, z: b - 0.9}); }
+      for (let k = from; k > to; k--) { const f = shells[k].z; legs.push({x: shells[k].entry, z: f - 0.9}, {x: shells[k].entry, z: f + 0.9}); }
+      legs.push({x, z});
+      const points: Point[] = [];
+      for (let i = 1; i < legs.length; i++) {
+        const room = shells[roomOf((legs[i - 1].z + legs[i].z) / 2)];
+        points.push(...around(legs[i - 1], legs[i], room.blocks), legs[i]);
+      }
       auto = {points, face};
       push = 0;
     };
@@ -525,6 +652,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       pos.z = sh.z - 1.6;
       yaw = 0;
       pitch = 0;
+      speed = strafe = push = 0;
     };
     const pick = (i: number) => {
       focus = i;
@@ -532,8 +660,10 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       if (i < 0) return;
       const p = hung[i].place;
       const sh = shells[p.room];
-      const x = Math.max(-HALF + BODY, Math.min(HALF - BODY, p.x + p.nx * STAND));
-      const z = Math.max(sh.z - sh.depth + BODY, Math.min(sh.z - BODY, p.z + p.nz * STAND));
+      const reach = p.small ? 2.3 : STAND;
+      const room = p.nx !== 0 && sh.divider ? sh.half / 2 : reach;           // in a divided room, stand in the aisle
+      const x = Math.max(-sh.half + BODY, Math.min(sh.half - BODY, p.x + p.nx * Math.min(reach, room + 0.4)));
+      const z = Math.max(sh.z - sh.depth + BODY, Math.min(sh.z - BODY, p.z + p.nz * reach));
       if (Math.abs(roomOf(pos.z) - p.room) > 1) { pos.x = sh.entry; pos.z = sh.z - 1.2; }   // far away: start from that room's door
       walkTo(x, z, p);
     };
@@ -557,7 +687,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       if (!enteredRef.current || viewingRef.current) return;
       e.preventDefault();
       auto = null;
-      push = Math.max(-9, Math.min(9, push - e.deltaY * 0.012));
+      push = Math.max(-12, Math.min(12, push - e.deltaY * 0.02));
     };
     let drag: {x: number; y: number} | null = null;
     let moved = 0;
@@ -569,8 +699,8 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       drag = {x: e.clientX, y: e.clientY};
       if (moved > 6) {                                // dragging looks around
         if (auto && auto.face) auto.face = null;
-        yaw += dx * 0.0042;
-        pitch = Math.max(-0.7, Math.min(0.7, pitch + dy * 0.003));
+        yaw += dx * 0.0045;
+        pitch = Math.max(-0.7, Math.min(0.7, pitch + dy * 0.0032));
       }
     };
     const ray = new THREE.Raycaster();
@@ -582,13 +712,18 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       const r = el.getBoundingClientRect();
       ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
       const hit = ray.intersectObjects(hung.filter((h) => groups[h.place.room].visible).map((h) => h.art))[0];
-      if (hit) { pick(hit.object.userData.index); return; }
+      if (hit) {                                      // first click walks up to the work, a second opens it
+        const i = hit.object.userData.index;
+        if (i === focus && !auto) openRef.current(hung[i].place.work);
+        else pick(i);
+        return;
+      }
       const spot = new THREE.Vector3();               // a click on the floor walks there
       if (ray.ray.intersectPlane(ground, spot) && spot.distanceTo(camera.position) < 40) {
         const room = shells[roomOf(spot.z)];
         if (Math.abs(room.index - roomOf(pos.z)) <= 1) {
           pick(-1);
-          walkTo(Math.max(-HALF + BODY, Math.min(HALF - BODY, spot.x)),
+          walkTo(Math.max(-room.half + BODY, Math.min(room.half - BODY, spot.x)),
             Math.max(room.z - room.depth + BODY, Math.min(room.z - BODY, spot.z)), null);
         }
       }
@@ -630,22 +765,33 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
     observer.observe(el);
     resize();
 
-    let frame = 0, raf = 0, lastRoom = -1, then = performance.now();
+    let frame = 0, raf = 0, lastRoom = -1, then = performance.now(), slow = 0, fast = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const now = performance.now();
-      const dt = Math.min(0.05, (now - then) / 1000);
+      const real = (now - then) / 1000;
+      const dt = Math.min(0.05, real);
       then = now;
+      // Keep it smooth: lower the drawing resolution when frames run long, raise it again when there is room.
+      if (real > 0.026) slow++; else if (real < 0.014) fast++;
+      if (frame % 90 === 89) {
+        const top = Math.min(window.devicePixelRatio, 2);
+        if (slow > 30 && ratio > 0.75) { ratio = Math.max(0.75, ratio - 0.25); renderer.setPixelRatio(ratio); resize(); }
+        else if (fast > 80 && ratio < top) { ratio = Math.min(top, ratio + 0.25); renderer.setPixelRatio(ratio); resize(); }
+        slow = fast = 0;
+      }
 
       if (auto) {                                     // walking somewhere on the visitor's behalf
         const goal = auto.points[0];
         const dx = goal.x - pos.x, dz = goal.z - pos.z;
         const dist = Math.hypot(dx, dz);
-        const step = calm ? dist : Math.min(dist, WALK * 1.25 * dt);
+        const final = auto.points.length === 1;
+        const pace = final ? Math.min(7.5, 1.2 + dist * 4.5) : 7.5;          // quick, easing in to the last stop
+        const step = calm ? dist : Math.min(dist, pace * dt);
         if (dist > 0.02) {
           pos.x += (dx / dist) * step;
           pos.z += (dz / dist) * step;
-          if (!auto.face || auto.points.length > 1 || dist > 1.6) { const t = turnTo(yaw, heading(dx, dz)); yaw += (t - yaw) * (calm ? 1 : Math.min(1, dt * 4)); }
+          if (!auto.face || !final || dist > 1.8) { const t = turnTo(yaw, heading(dx, dz)); yaw += (t - yaw) * (calm ? 1 : Math.min(1, dt * 7)); }
         }
         if (dist <= 0.05 || step >= dist) {
           auto.points.shift();
@@ -654,43 +800,53 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
         if (auto && auto.face && auto.points.length === 1) {   // near the end: turn to the work
           const f = auto.face;
           const t = turnTo(yaw, heading(f.x - pos.x, f.z - pos.z));
-          yaw += (t - yaw) * (calm ? 1 : Math.min(1, dt * 5));
-          pitch += (Math.atan2(HANG - EYE, Math.hypot(f.x - pos.x, f.z - pos.z)) - pitch) * (calm ? 1 : Math.min(1, dt * 5));
+          const tilt = Math.atan2(f.y - EYE, Math.hypot(f.x - pos.x, f.z - pos.z));
+          yaw += (t - yaw) * (calm ? 1 : Math.min(1, dt * 9));
+          pitch += (tilt - pitch) * (calm ? 1 : Math.min(1, dt * 9));
           if (Math.hypot(goal.x - pos.x, goal.z - pos.z) < 0.06 && Math.abs(t - yaw) < 0.01) auto = null;
         }
+        speed = strafe = 0;
       } else {                                        // walking under the visitor's own control
         const run = keys.has("shift") ? 1.8 : 1;
         const fwd = (keys.has("w") || keys.has("arrowup") ? 1 : 0) - (keys.has("s") || keys.has("arrowdown") ? 1 : 0);
         const side = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
         const turn = (keys.has("arrowleft") || keys.has("q") ? 1 : 0) - (keys.has("arrowright") || keys.has("e") ? 1 : 0);
-        yaw += turn * 1.7 * dt;
-        const speed = (fwd * WALK * run + push) * dt;
-        push *= Math.pow(0.02, dt);                    // the wheel's momentum dies away
+        const k = calm ? 1 : Math.min(1, dt * 12);     // quick to start and stop, without a jolt
+        speed += (fwd * WALK * run - speed) * k;
+        strafe += (side * WALK * 0.85 - strafe) * k;
+        spin += (turn * 2.3 - spin) * (calm ? 1 : Math.min(1, dt * 14));
+        yaw += spin * dt;
+        const go = (speed + push) * dt;
+        push *= Math.pow(0.006, dt);                   // the wheel's momentum dies away
         if (Math.abs(push) < 0.05) push = 0;
-        if (speed || side) {
-          const next = constrain(pos.x - Math.sin(yaw) * speed + Math.cos(yaw) * side * WALK * 0.8 * dt,
-            pos.z - Math.cos(yaw) * speed - Math.sin(yaw) * side * WALK * 0.8 * dt);
+        if (Math.abs(go) > 1e-4 || Math.abs(strafe) > 1e-3) {
+          const next = constrain(pos.x - Math.sin(yaw) * go + Math.cos(yaw) * strafe * dt, pos.z - Math.cos(yaw) * go - Math.sin(yaw) * strafe * dt);
           pos.x = next.x;
           pos.z = next.z;
-          if (!turn) pitch += (0 - pitch) * Math.min(1, dt * 1.5);
+          if (!turn && !drag) pitch += (0 - pitch) * Math.min(1, dt * 1.5);
         }
       }
       camera.position.set(pos.x, EYE, pos.z);
       camera.rotation.set(pitch, yaw, 0);
-      lamp.position.set(pos.x, 3.5, pos.z);
+      lamp.position.set(pos.x, 3.4, pos.z);
 
-      if (frame++ % 12 === 0) {
+      if (frame++ % 10 === 0) {
         const here = roomOf(pos.z);
         let sharp = 0;
-        for (const h of hung) {
-          const d = Math.hypot(h.place.x - pos.x, h.place.z - pos.z);
+        const byDistance = hung.map((h) => ({h, d: Math.hypot(h.place.x - pos.x, h.place.z - pos.z)})).filter((x) => x.d < FAR_DROP + 5 || x.h.level > 0);
+        byDistance.sort((a, b) => a.d - b.d);
+        for (const {h, d} of byDistance) {
           if (d < NEAR_SHARP && h.level < 2 && sharp++ < 2) show(h, h.place.work.image, 2);
           else if (d < NEAR_LOAD && h.level < 1 && Math.abs(h.place.room - here) <= 1) show(h, h.place.work.thumb, 1);
           else if (d > FAR_DROP && h.level > 0) drop(h);
         }
-        groups.forEach((g, i) => { g.visible = Math.abs(i - here) <= 1; });
+        groups.forEach((g, i) => {
+          g.visible = Math.abs(i - here) <= 1;
+          if (g.visible) dress(i);
+          else if (signs[i] && Math.abs(i - here) > 3) { signs[i]!(); signs[i] = null; }
+        });
         if (here !== lastRoom) { lastRoom = here; setRoomAt(here); }
-        if (focus >= 0 && !auto && Math.hypot(hung[focus].place.x - pos.x, hung[focus].place.z - pos.z) > 6) pick(-1);
+        if (focus >= 0 && !auto && Math.hypot(hung[focus].place.x - pos.x, hung[focus].place.z - pos.z) > 6.5) pick(-1);
       }
       renderer.render(scene, camera);
     };
@@ -707,6 +863,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       el.removeEventListener("keyup", onKeyUp);
       el.removeEventListener("blur", onBlur);
       hung.forEach(drop);
+      signs.forEach((undo) => undo && undo());
       dispose.forEach((d) => d.dispose());
       renderer.dispose();
       renderer.domElement.remove();
@@ -722,7 +879,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
   const pad = (key: string, label: string, glyph: string) => (
     <button type="button" aria-label={label}
       onPointerDown={(e) => { e.preventDefault(); setEntered(true); api.current?.hold(key, true); }}
-      onPointerUp={() => api.current?.hold(key, false)} onPointerLeave={() => api.current?.hold(key, false)}>{glyph}</button>
+      onPointerUp={() => { api.current?.hold(key, false); refocus(); }} onPointerLeave={() => api.current?.hold(key, false)}>{glyph}</button>
   );
 
   return (
@@ -736,8 +893,7 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
         </label>
         <label>
           <span>Room</span>
-          <select value={roomAt} disabled={view !== "walk"}
-            onChange={(e) => { api.current?.room(Number(e.target.value)); setEntered(true); mount.current?.focus(); }}>
+          <select value={roomAt} disabled={view !== "walk"} onChange={(e) => { api.current?.room(Number(e.target.value)); refocus(); }}>
             {periods.map((period) => (
               <optgroup key={period} label={period}>
                 {rooms.map((r, i) => (r.period === period ? (
@@ -757,7 +913,6 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
       {view === "walk" ? (
         <div className="sic-walk__stage" ref={stageRef} style={{height: full ? "100vh" : height}}>
           <div className="sic-walk__canvas" ref={mount} tabIndex={0}
-            onBlur={() => { if (!document.fullscreenElement && !viewingRef.current) setEntered(false); }}
             aria-label="Gallery rooms. W A S D or the arrow keys walk and turn; drag to look around; N and P go to the next and previous work; Enter opens the selected work; Page Up and Page Down change room; F for full screen; Escape to leave." />
           {room && (
             <div className="sic-walk__where" aria-live="polite">
@@ -770,9 +925,9 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
             {full ? "Exit full screen" : "Full screen"}
           </button>
           {!entered && !viewing && (
-            <button type="button" className="sic-walk__enter" onClick={() => { setEntered(true); mount.current?.focus(); }}>
+            <button type="button" className="sic-walk__enter" onClick={refocus}>
               <strong>Enter the exhibition</strong>
-              <span>Drag to look around. Walk with W A S D or the arrow keys, or click the floor to go there. Click a work for its label, then Open to see it up close. Esc to leave.</span>
+              <span>Drag to look around. Walk with W A S D or the arrow keys, or click the floor to go there. Click a work for its label; click it again, or press Open, to see it up close. Esc to leave.</span>
             </button>
           )}
           {selected && !viewing && (
@@ -783,21 +938,21 @@ export default function GalleryWalk({height = "78vh"}: {height?: string}) {
               {selected.pages > 1 && <p className="sic-walk__pages">{selected.pages} pages</p>}
               <div className="sic-walk__actions">
                 <button type="button" className="sic-walk__open" onClick={() => setViewing(selected)}>Open</button>
-                <button type="button" onClick={() => api.current?.clear()}>Close</button>
+                <button type="button" onClick={() => { api.current?.clear(); refocus(); }}>Close</button>
               </div>
             </aside>
           )}
           <div className="sic-walk__scrub">
-            <button type="button" onClick={() => api.current?.room(roomAt - 1)} disabled={roomAt === 0}>← Room</button>
-            <button type="button" onClick={() => { setEntered(true); api.current?.select(-1); }}>‹ Previous work</button>
+            <button type="button" onClick={() => { api.current?.room(roomAt - 1); refocus(); }} disabled={roomAt === 0}>← Room</button>
+            <button type="button" onClick={() => { api.current?.select(-1); refocus(); }}>‹ Previous work</button>
             <div className="sic-walk__pad" aria-label="Walk">
               {pad("arrowleft", "Turn left", "↺")}
               {pad("w", "Walk forward", "▲")}
               {pad("s", "Walk back", "▼")}
               {pad("arrowright", "Turn right", "↻")}
             </div>
-            <button type="button" onClick={() => { setEntered(true); api.current?.select(1); }}>Next work ›</button>
-            <button type="button" onClick={() => api.current?.room(roomAt + 1)} disabled={roomAt >= rooms.length - 1}>Room →</button>
+            <button type="button" onClick={() => { api.current?.select(1); refocus(); }}>Next work ›</button>
+            <button type="button" onClick={() => { api.current?.room(roomAt + 1); refocus(); }} disabled={roomAt >= rooms.length - 1}>Room →</button>
           </div>
           {viewing && <WorkViewer key={viewing.id} work={viewing} full={full} onFull={toggleFull} onClose={closeViewer} />}
         </div>
