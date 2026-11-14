@@ -4,8 +4,10 @@ import site from "../data/site.json";
 /**
  * The collection as a network. Every item is a point, placed so that items
  * whose first pages look alike sit near each other. Lines join an item to the
- * items it looks like (amber) and the items its text reads like (blue). Both
- * are worked out by tools/make_related.py and read from the file bucket.
+ * items it looks like (amber), the items its text reads like (blue), and, in
+ * green, a text to the pictures connected with it (the same publication, or a
+ * strong match of subject). All are worked out by tools/make_related.py and
+ * read from the file bucket.
  *
  * Wheel to zoom, drag to move, point at an item to see what it is linked to,
  * click to keep it selected. Pictures appear once the view is close enough.
@@ -19,10 +21,10 @@ export default function ContentMap({height = "78vh"}: {height?: string}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [sections, setSections] = useState<string[]>([]);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
-  const [links, setLinks] = useState({looks: true, reads: true});
+  const [links, setLinks] = useState({looks: true, reads: true, cross: true});
   const [picked, setPicked] = useState<Node | null>(null);
   const [status, setStatus] = useState("Loading the network…");
-  const data = useRef<{nodes: Node[]; by: Record<string, number>; looks: number[][]; reads: number[][]} | null>(null);
+  const data = useRef<{nodes: Node[]; by: Record<string, number>; looks: number[][]; reads: number[][]; cross: number[][]} | null>(null);
   const view = useRef({x: 0, y: 0, k: 1});
   const hover = useRef(-1);
   const chosen = useRef(-1);
@@ -51,10 +53,11 @@ export default function ContentMap({height = "78vh"}: {height?: string}) {
         }));
         const by: Record<string, number> = {};
         nodes.forEach((n, i) => { by[n.id] = i; });
-        const lists = (kind: "looks" | "reads") => nodes.map((n) => ((related[n.id] || {})[kind] || []).slice(0, 4)
+        const lists = (kind: "looks" | "reads" | "pictures" | "texts") => nodes.map((n) => ((related[n.id] || {})[kind] || []).slice(0, 4)
           .map((other: string) => by[other]).filter((i: number | undefined) => i !== undefined));
         if (!live) return;
-        data.current = {nodes, by, looks: lists("looks"), reads: lists("reads")};
+        const pictures = lists("pictures"), texts = lists("texts");
+        data.current = {nodes, by, looks: lists("looks"), reads: lists("reads"), cross: nodes.map((_, i) => [...pictures[i], ...texts[i]])};
         setSections(chart.sections);
         setStatus("");
       } catch {
@@ -105,7 +108,8 @@ export default function ContentMap({height = "78vh"}: {height?: string}) {
       };
       if (show.looks) edges(d.looks, "#e0a63c");
       if (show.reads) edges(d.reads, "#6fb1c9");
-      const near = new Set<number>(focus >= 0 ? [focus, ...(show.looks ? d.looks[focus] : []), ...(show.reads ? d.reads[focus] : [])] : []);
+      if (show.cross) edges(d.cross, "#9bd17f");
+      const near = new Set<number>(focus >= 0 ? [focus, ...(show.looks ? d.looks[focus] : []), ...(show.reads ? d.reads[focus] : []), ...(show.cross ? d.cross[focus] : [])] : []);
       const big = Math.max(26, Math.min(120, 9 * k));      // picture size once the view is close
       let drawn = 0;
       d.nodes.forEach((n, i) => {
@@ -217,7 +221,7 @@ export default function ContentMap({height = "78vh"}: {height?: string}) {
   useEffect(() => { redraw.current(); }, [hidden, links]);
 
   const d = data.current;
-  const neighbours = (kind: "looks" | "reads") => (picked && d ? d[kind][d.by[picked.id]].map((i) => d.nodes[i]) : []);
+  const neighbours = (kind: "looks" | "reads" | "cross") => (picked && d ? d[kind][d.by[picked.id]].map((i) => d.nodes[i]) : []);
   return (
     <section className="sic-net" aria-label="Network of the collection">
       <div className="sic-net__bar">
@@ -231,6 +235,7 @@ export default function ContentMap({height = "78vh"}: {height?: string}) {
         </div>
         <label><input type="checkbox" checked={links.looks} onChange={(e) => setLinks({...links, looks: e.target.checked})} /> <b className="sic-net__looks">Looks like</b></label>
         <label><input type="checkbox" checked={links.reads} onChange={(e) => setLinks({...links, reads: e.target.checked})} /> <b className="sic-net__reads">Reads like</b></label>
+        <label><input type="checkbox" checked={links.cross} onChange={(e) => setLinks({...links, cross: e.target.checked})} /> <b className="sic-net__cross">Text and picture</b></label>
       </div>
       <div className="sic-net__stage" style={{height}}>
         {status ? <p className="sic-walk__status">{status}</p> : <canvas ref={canvas} aria-hidden="true" />}
@@ -240,9 +245,9 @@ export default function ContentMap({height = "78vh"}: {height?: string}) {
             <h3>{picked.title}</h3>
             <p className="sic-eyebrow">{sections[picked.section]}</p>
             {picked.href && <a className="sic-net__open" href={picked.href}>Open this item</a>}
-            {(["looks", "reads"] as const).map((kind) => (neighbours(kind).length ? (
+            {(["looks", "reads", "cross"] as const).map((kind) => (neighbours(kind).length ? (
               <div key={kind}>
-                <h4 className={kind === "looks" ? "sic-net__looks" : "sic-net__reads"}>{kind === "looks" ? "Looks like" : "Reads like"}</h4>
+                <h4 className={kind === "looks" ? "sic-net__looks" : kind === "reads" ? "sic-net__reads" : "sic-net__cross"}>{kind === "looks" ? "Looks like" : kind === "reads" ? "Reads like" : "Text and picture"}</h4>
                 <ul>{neighbours(kind).map((n) => <li key={n.id}><a href={n.href || n.thumb}>{n.title}</a></li>)}</ul>
               </div>
             ) : null))}
@@ -251,7 +256,7 @@ export default function ContentMap({height = "78vh"}: {height?: string}) {
         )}
       </div>
       <p className="sic-net__about">
-        Each point is an item; items whose first pages look alike are placed near each other. Wheel to zoom, drag to move, click an item to see its links.
+        Each point is an item; items whose first pages look alike are placed near each other. Amber lines join items that look alike, blue lines items whose texts read alike, and green lines a text and the pictures connected with it. Wheel to zoom, drag to move, click an item to see its links.
         The links are suggestions made by comparing pictures and the wording of texts by machine, and say nothing certain about the works.
       </p>
     </section>

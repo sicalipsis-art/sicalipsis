@@ -85,7 +85,10 @@ def nfc(s):
 
 
 def clean(s):
-    return " ".join(nfc(s or "").split())
+    """Plain text: Omeka lets a field hold HTML (an underlined or italic title), which the new site must not show as code."""
+    import html as _html
+    text = _html.unescape(re.sub(r"<[^>]+>", "", nfc(s or "")))
+    return " ".join(text.split())
 
 
 def fold(s):

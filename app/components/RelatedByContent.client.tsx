@@ -39,6 +39,8 @@ export default function RelatedByContent({manifest = ""}: {manifest?: string}) {
         setRows([
           {label: "Looks like", note: "Items whose first page resembles this one.", cards: pick(mine.looks)},
           {label: "Reads like", note: "Items whose text uses similar words.", cards: pick(mine.reads)},
+          {label: "Pictures connected with this text", note: "Pictures from the same publication, or that match what the text is about.", cards: pick(mine.pictures)},
+          {label: "Texts connected with this picture", note: "The publication it comes from, or texts about what it shows.", cards: pick(mine.texts)},
         ].filter((row) => row.cards.length > 0));
       } catch { /* the section simply stays away */ }
     })();

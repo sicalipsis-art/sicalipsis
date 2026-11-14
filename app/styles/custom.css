@@ -1648,3 +1648,7 @@ body.canopy-type-work main dt {
 .sic-contact a {
   color: var(--color-accent-default);
 }
+
+.sic-net__cross {
+  color: #9bd17f;
+}
