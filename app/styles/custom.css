@@ -841,8 +841,38 @@ body.canopy-type-work main dt {
   opacity: 0.85;
 }
 
+.sic-csearch__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 0.8rem;
+}
+
+.sic-csearch__filter {
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  padding: 0.35rem 0.85rem;
+  cursor: pointer;
+}
+
+.sic-csearch__filter span {
+  display: inline-block;
+  width: 0.9em;
+  color: var(--color-accent-default);
+  font-weight: 700;
+}
+
+.sic-csearch__filter:hover,
+.sic-csearch__filter[aria-expanded="true"] {
+  border-color: var(--color-accent-default);
+}
+
 .sic-csearch__status {
-  margin: 0.2rem 0 0;
+  margin: 0;
   font-size: 0.9rem;
 }
 
