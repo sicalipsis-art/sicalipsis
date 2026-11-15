@@ -318,6 +318,12 @@ damaged_path = rec / "damaged_on_omeka.csv"
 damaged = {d["stored_name"]: d["note"] for d in read_csv(damaged_path)} if damaged_path.exists() else {}
 for r in rows:
     r["file_note"] = damaged.get(r["r2_key"].rsplit("/", 1)[-1], "")
+# Objects deliberately left off the site, and why (reconciliation/not_published.csv: objectid, note).
+left_out_path = rec / "not_published.csv"
+left_out = {d["objectid"]: d["note"] for d in read_csv(left_out_path)} if left_out_path.exists() else {}
+for r in rows:
+    if r["objectid"] in left_out:
+        r["file_note"] = left_out[r["objectid"]]
 # Which objects have their text on the site (make_annotations.py keeps the list).
 attached_path = data / "published" / "annotations.json"
 if attached_path.exists():

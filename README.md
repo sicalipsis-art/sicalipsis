@@ -77,6 +77,7 @@ when it is built.
 | `ocr_from_r2.py`, `make_annotations.py` | OCR the documents; attach the text to the manifests. |
 | `make_related.py`, `make_text_index.py` | Similar items; the index for searching inside the texts. |
 | `tag_images.py`, `contact_sheets.py`, `tag_vocabulary.json` | Image tags. |
+| `merge_readings.py` | Bring titles and marks read from the items into `enrichment.csv`; write the review sheet. |
 | `serve_cors.py`, `pilot_select.py`, `peek_xlsx.py` | Small helpers. |
 
 `site/`, `.cache/`, `node_modules/` and `data/` are never committed.
@@ -314,8 +315,11 @@ picture"; one item is held back this way for the team to decide on.
 
 ## Known gaps in the data
 
-- **Two objects are not shown.** One item never had a file; one file on the
-  Omeka server (item 913) does not match the checksum Omeka recorded for it.
+- **Two objects are not shown.** One item never had a file. Item 913 was an
+  untitled upload whose file is cut short; what survives is the opening of a
+  novelette that is in the collection complete as item 914. Objects left out
+  on purpose, with the reason, are listed in
+  `../data/reconciliation/not_published.csv`.
 - **Files that were already damaged on Omeka.** Eight PDFs were cut short when
   they were uploaded to Omeka (`../data/reconciliation/damaged_on_omeka.csv`):
   seven novelettes and one issue of Pentalfa. The pages that survive are
@@ -330,10 +334,16 @@ picture"; one item is held back this way for the team to decide on.
   then steps 9 to 11. Where there is no OCR yet, "Reads like" and the text
   search use the PDF's own text layer, which is often poor. About a quarter of
   OCR pages are flagged for proofreading (`../data/published/ocr_pages.csv`).
-- **Image tags and the titles added to untitled items** have not yet been
+- **Image tags and the titles read from the items** have not yet been
   reviewed by the project team (`../data/tags/labels.csv`,
-  `../data/master/enrichment.csv`).
-- **170 gallery items have only a generic title** ("Postcard", "Photograph").
+  `../data/master/enrichment.csv`). The 167 gallery items that were titled
+  only "Postcard" or "Photograph" now have a title transcribed from the card
+  or, where it carries none, a short description in square brackets; the old
+  title is kept in `title_original`. `tools/merge_readings.py` records the
+  editorial decisions and writes the sheet for review,
+  `../data/master/review_gallery_titles.xlsx`. Among them are several pairs
+  of records that show the same card, a number of scans that are sideways or
+  mirrored, and items that are not postcards; the sheet's notes say which.
 - 278 of the 2,648 novelette page images are not yet attached to a novelette.
 - The URL columns of the master spreadsheet (`object_location`, `image_small`,
   `image_thumb`) are empty; `r2_key` says where each file is in the bucket.
