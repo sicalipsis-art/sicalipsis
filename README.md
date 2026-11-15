@@ -78,6 +78,7 @@ when it is built.
 | `make_related.py`, `make_text_index.py` | Similar items; the index for searching inside the texts. |
 | `tag_images.py`, `contact_sheets.py`, `tag_vocabulary.json` | Image tags. |
 | `merge_readings.py` | Bring titles and marks read from the items into `enrichment.csv`; write the review sheet. |
+| `merge_dates.py` | Bring dates found in library catalogues and bibliographies into `dates_researched.csv`, deciding which are firm and which are estimates. |
 | `serve_cors.py`, `pilot_select.py`, `peek_xlsx.py` | Small helpers. |
 
 `site/`, `.cache/`, `node_modules/` and `data/` are never committed.
@@ -325,10 +326,24 @@ picture"; one item is held back this way for the team to decide on.
   seven novelettes and one issue of Pentalfa. The pages that survive are
   published and each item carries a note; complete copies would have to come
   from the original scans.
-- **210 files are linked to their record by title only** (a later version of
+- **209 files are linked to their record by title only** (a later version of
   the file in Box), not by checksum; `file_status` in the master says which.
-- **Dates.** About 400 objects have no date yet; estimated dates are marked as
-  such (`date_certainty`).
+  One such match was wrong: the Box file named Rosa de carne holds Lobos y
+  corderas. The record (sic00556) now shows Omeka's own file, and the case is
+  recorded in `../data/reconciliation/wrong_title_matches.csv`. A check of
+  every published object's first page against every other found no second
+  case. For sic00538 (El veneno de la aventura) Omeka held a photocopy from a
+  modern edition, while the site shows the 1924 issue from Box, the same
+  issue as sic00859; which to show is for the project team to decide.
+- **Dates.** 207 objects have no date: 198 pictures in the Image Gallery
+  that carry none and name no publication, and a handful of texts. 185 dates
+  come from library catalogues, bibliographies of the Spanish novela corta
+  and dates printed in the publications (`../data/master/dates_researched.csv`,
+  with the source of each and notes on conflicts between sources); 36 of
+  them are firm and 149 are estimates. Estimated dates are marked as such
+  (`date_certainty`), shown in words, and kept out of the filter by year.
+  The Biblioteca Nacional's "about 1910" for the Colección Placer and its
+  dates for the Pica y Peca booklets (about 1910 to about 1930) are rough.
 - **OCR is incomplete.** 653 of the 908 PDFs have been read (all of the
   magazines and the Image Gallery, most of the nudist periodicals; 122 of the
   276 novelettes and 61 of the 158 essays). The rest needs further runs
@@ -348,7 +363,15 @@ picture"; one item is held back this way for the team to decide on.
   `../data/master/review_gallery_titles.xlsx`. Among them are several pairs
   of records that show the same card, a number of scans that are sideways or
   mirrored, and items that are not postcards; the sheet's notes say which.
-- 278 of the 2,648 novelette page images are not yet attached to a novelette.
+- All 2,648 novelette page images are attached to a novelette's record.
+  Seventeen folders that the rules could not settle are listed with their
+  novelette and the evidence in `../data/reconciliation/page_image_parents.csv`.
+  The page images are catalogue records only; they are not shown on the site,
+  because the same pages are inside each novelette's own file.
+- **Records that duplicate each other.** Besides the pairs of postcards noted
+  in the review sheet, several texts are in the collection twice (an Omeka
+  record and a second copy in Box, or two Omeka records for one file, as with
+  the Revista de Occidente articles); they are published as they stand.
 - The URL columns of the master spreadsheet (`object_location`, `image_small`,
   `image_thumb`) are empty; `r2_key` says where each file is in the bucket.
 - The home page's featured works, the three works that stand for each gallery

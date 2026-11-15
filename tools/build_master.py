@@ -108,6 +108,14 @@ for b in box_files:
         for item_id in b["omeka_item_ids"].split(" | "):
             identical.setdefault(item_id, b["box_path"])
 titled = {m["omeka_item_id"]: m for m in read_csv(rec / "title_matches.csv")}
+# Title matches found to be wrong (reconciliation/wrong_title_matches.csv: omeka_item_id,
+# box_path, same_as, reason): the Box file does not hold the work its name says. The record
+# goes back to Omeka's own file, and the Box file is not made into an object of its own.
+wrong_path = rec / "wrong_title_matches.csv"
+wrong = read_csv(wrong_path) if wrong_path.exists() else []
+set_aside = {w["box_path"]: w["same_as"] for w in wrong}
+for w in wrong:
+    titled.pop(w["omeka_item_id"], None)
 # Omeka's own files recovered from the Internet Archive and verified in the bucket.
 rescued_path = rec / "rescued_in_bucket.csv"
 rescued = {r["stored_name"]: r for r in read_csv(rescued_path)} if rescued_path.exists() else {}
@@ -172,6 +180,8 @@ new_rows, children, orphans = [], [], 0
 for b in box_files:
     if b["ext"] == "xlsx" or b["box_path"] in object_of_box or b["status"] == "in Omeka":
         continue
+    if b["box_path"] in set_aside:
+        continue  # a second copy of a work already in the collection, under a wrong name
     if b["section"] == "3. IMAGES EROTIC NOVELETTES":
         continue  # handled below, once every possible parent has an objectid
     stem = b["box_path"].rsplit("/", 1)[-1].rsplit(".", 1)[0]
@@ -215,6 +225,11 @@ def find_parent(work):
 
 
 row_of = {r["objectid"]: r for r in rows + new_rows}
+# Folders of page images whose novelette the rules above cannot settle (two records of one
+# title, a folder named after a miscellany): reconciliation/page_image_parents.csv gives the
+# novelette for each, checked by finding the images on its pages.
+parents_path = rec / "page_image_parents.csv"
+parent_of_folder = {nfc(f["folder"]): f["objectid"] for f in read_csv(parents_path)} if parents_path.exists() else {}
 for b in box_files:
     if b["section"] != "3. IMAGES EROTIC NOVELETTES":
         continue
@@ -223,6 +238,7 @@ for b in box_files:
     work = parts[2] if len(parts) >= 4 else re.sub(r"_Page.*$", "", stem, flags=re.I)
     hit = find_parent(work)
     parent = object_of_box.get(hit["box_path"], "") if hit else ""
+    parent = parent_of_folder.get(nfc("/".join(parts[1:-1])), parent)
     orphans += not parent
     page = re.search(r"Page[_ ]?(\d+)", stem, flags=re.I)
     base = row_of[parent]["title"] if parent else clean(work.title())
@@ -313,6 +329,27 @@ for r in rows + new_rows:
     if added or e["inscription"]:
         r["enriched"] = f"added from the item: {', '.join(added) or 'inscription'}"
         enriched_count += 1
+# Dates found outside the record and its own text (master/dates_researched.csv: objectid, date,
+# date_kind, basis, source, confidence, note): a library catalogue or bibliography that dates the
+# work, a date printed in the publication that the rules above do not recognise, or a range worked
+# out from the series it belongs to. Used only where the record still has no date. A date a source
+# gives for the very work counts as derived; a range, or a date held with low confidence, as
+# estimated, and so stays out of the filter by year.
+researched_path = data / "master" / "dates_researched.csv"
+researched_count = 0
+for e in (read_csv(researched_path) if researched_path.exists() else []):
+    r = next((x for x in rows + new_rows if x["objectid"] == e["objectid"]), None)
+    if not r or not e["date"] or r.get("date_certainty"):
+        continue
+    lo, _, hi = e["date"].partition("/")
+    if e["date_kind"] == "exact" and e["confidence"] != "low" and not hi:
+        r.update(date=lo, date_range="", date_certainty="derived", date_display=dates.display(lo), date_basis=e["basis"])
+    else:
+        lo, hi = lo[:4], (hi or lo)[:4]
+        r.update(date=lo, date_range=f"{lo}/{hi}", date_certainty="estimated",
+                 date_display=f"c. {lo}" if lo == hi else f"between {lo} and {hi}", date_basis=e["basis"])
+    researched_count += 1
+print("dates from research       :", researched_count)
 # Files that were already cut short on the Omeka server (reconciliation/damaged_on_omeka.csv).
 damaged_path = rec / "damaged_on_omeka.csv"
 damaged = {d["stored_name"]: d["note"] for d in read_csv(damaged_path)} if damaged_path.exists() else {}
