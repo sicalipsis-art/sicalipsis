@@ -329,9 +329,13 @@ picture"; one item is held back this way for the team to decide on.
   the file in Box), not by checksum; `file_status` in the master says which.
 - **Dates.** About 400 objects have no date yet; estimated dates are marked as
   such (`date_certainty`).
-- **OCR is incomplete.** Part of the collection has been read; the rest needs
-  further runs of `ocr_from_r2.py` (about 15 seconds a page on a laptop GPU),
-  then steps 9 to 11. Where there is no OCR yet, "Reads like" and the text
+- **OCR is incomplete.** 653 of the 908 PDFs have been read (all of the
+  magazines and the Image Gallery, most of the nudist periodicals; 122 of the
+  276 novelettes and 61 of the 158 essays). The rest needs further runs
+  of `ocr_from_r2.py` (about 15 seconds a page on a laptop GPU; it picks up
+  where it stopped), then steps 9 to 11. Twelve novelettes whose files are
+  cut short (sic00901 to sic00912) are read from the page scans recovered
+  from the file; that path has not yet been run. Where there is no OCR yet, "Reads like" and the text
   search use the PDF's own text layer, which is often poor. About a quarter of
   OCR pages are flagged for proofreading (`../data/published/ocr_pages.csv`).
 - **Image tags and the titles read from the items** have not yet been

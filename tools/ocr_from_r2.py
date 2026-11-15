@@ -27,6 +27,7 @@ Lines flagged loop or dense are written as "[illegible]" in the .txt file; the
 .json file always keeps what the model produced.
 """
 import csv
+import io
 import json
 import os
 import re
@@ -47,6 +48,9 @@ from surya.foundation import FoundationPredictor  # noqa: E402
 from surya.layout import LayoutPredictor  # noqa: E402
 from surya.recognition import RecognitionPredictor  # noqa: E402
 from surya.settings import settings  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from make_iiif import salvage_order  # noqa: E402
 
 BUCKET = "r2:sicalipsis-files"
 LONG_SIDE = 2400
@@ -193,12 +197,25 @@ def main():
                 raise RuntimeError("the original could not be downloaded from the bucket")
             doc = fitz.open(src)
             pages, summaries, sizes = [], [], []
-            for start in range(0, len(doc), CHUNK):
+            # A file cut short so badly that its list of pages is gone is read from the
+            # page scans stored inside it, in the order the publisher shows them.
+            sources = list(doc) if len(doc) else salvage_order(doc)
+            for start in range(0, len(sources), CHUNK):
                 images = []
-                for page in list(doc)[start:start + CHUNK]:
-                    zoom = LONG_SIDE / max(page.rect.width, page.rect.height)
-                    pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
-                    images.append(Image.frombytes("RGB", (pix.width, pix.height), pix.samples))
+                for source in sources[start:start + CHUNK]:
+                    if isinstance(source, int):
+                        try:
+                            scan = Image.open(io.BytesIO(doc.extract_image(source)["image"])).convert("RGB")
+                        except Exception:
+                            continue                      # the publisher leaves these out as well
+                        scan.thumbnail((LONG_SIDE, LONG_SIDE))
+                        images.append(scan)
+                    else:
+                        zoom = LONG_SIDE / max(source.rect.width, source.rect.height)
+                        pix = source.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
+                        images.append(Image.frombytes("RGB", (pix.width, pix.height), pix.samples))
+                if not images:
+                    continue
                 predictions = recognise(images, det_predictor=detect)
                 layouts = layout(images)
                 for image, prediction, lay in zip(images, predictions, layouts):
@@ -207,6 +224,8 @@ def main():
                     summaries.append(summary)
                     sizes.append(list(image.size))
             doc.close()
+            if not pages:
+                raise RuntimeError("no page of this file could be opened")
             result = {"objectid": oid, "engine": ENGINE, "rendered_long_side": LONG_SIDE,
                       "pages": [{"n": n, "width": w, "height": h, **s, "lines": ls}
                                 for n, ((w, h), s, ls) in enumerate(zip(sizes, summaries, pages), 1)]}
@@ -227,8 +246,17 @@ def main():
                   f"flagged pages {flagged:3}  {row['title'][:44]}", flush=True)
         except Exception as exc:
             print(f"[{i}/{len(todo)}] {oid}  FAILED: {str(exc)[:200]}", flush=True)
+            try:                                          # after running out of GPU memory, give it back
+                doc.close()
+                import torch
+                torch.cuda.empty_cache()
+            except Exception:
+                pass
         finally:
-            src.unlink(missing_ok=True)
+            try:
+                src.unlink(missing_ok=True)
+            except OSError:
+                pass                                      # still open after a failure; removed on the next run
     total_pages = sum(v["pages"] for v in state.values())
     print(f"OCRed so far: {len(state)} documents, {total_pages} pages")
 
