@@ -7,9 +7,6 @@ import site from "../data/site.json";
  * out by tools/make_related.py and kept in the file bucket
  * (web/related/related.json), so they change without a new build of the site.
  * Titles, pictures and links come from the site's own search data.
- *
- * These are suggestions made by comparing pictures and vocabulary, and the
- * section says so.
  */
 type Card = {id: string; title: string; href: string; thumb: string};
 
@@ -66,7 +63,6 @@ export default function RelatedByContent({manifest = ""}: {manifest?: string}) {
           </ul>
         </div>
       ))}
-      <p className="sic-related__about">Suggested by comparing the pictures and the wording of the texts by machine; a resemblance is not a statement about the works.</p>
     </section>
   );
 }

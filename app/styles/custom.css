@@ -1689,3 +1689,94 @@ body.canopy-type-work main dt {
 .canopy-work--secondary dd a {
   overflow-wrap: anywhere;
 }
+
+/* The text reader: Spanish, English, or side by side */
+.sic-text__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+
+.sic-text__modes button,
+.sic-tsearch form .sic-tsearch__modes button {
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+
+.sic-text__modes button[aria-pressed="true"],
+.sic-tsearch form .sic-tsearch__modes button[aria-pressed="true"] {
+  color: #17120a;
+  background: var(--color-accent-default);
+  border-color: var(--color-accent-default);
+  font-weight: 600;
+}
+
+.sic-text__note {
+  max-width: 60rem;
+  margin: 0 0 1.2rem;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.sic-text__para {
+  max-width: 44rem;
+  margin: 0 0 0.9rem;
+  font-family: var(--font-serif);
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.sic-text__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 2rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.sic-text__pair p {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.sic-text__pair p:first-child {
+  opacity: 0.8;
+}
+
+.sic-text__kept {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .sic-text__pair {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+}
+
+/* Search inside the texts: which words, or by meaning */
+.sic-tsearch__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.7rem;
+}
+
+.sic-tsearch__line + .sic-tsearch__original {
+  margin-top: -0.2rem;
+}
+
+.sic-tsearch__original {
+  font-size: 0.85rem;
+  opacity: 0.65;
+  font-style: italic;
+}

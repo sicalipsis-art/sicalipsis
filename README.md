@@ -53,9 +53,9 @@ when it is built.
 | `app/components/SectionCards.tsx`, `PageCards.tsx` | Cards for the sections and for the pages inside a section; the collection tree. |
 | `app/components/CollectionSearch.client.tsx` | The search box and tags on the collection pages. |
 | `app/components/ViewerZoom.client.tsx` | In the item viewer, a double-click at full zoom returns to the whole page. |
-| `app/components/ItemText.client.tsx` | "Read the text" on item pages: the OCR text, page by page. |
+| `app/components/ItemText.client.tsx` | "Read the text" on item pages: the OCR text page by page, in Spanish, in English translation, or side by side. |
 | `app/components/RelatedByContent.client.tsx` | "Looks like" and "Reads like" on item pages. |
-| `app/components/TextSearch.client.tsx` | The Texts page: search inside the words on the pages. |
+| `app/components/TextSearch.client.tsx` | The Texts page: search inside the texts by exact match (Spanish or English words) or by meaning. |
 | `app/components/ContentMap.client.tsx` | The Network page: every item as a point, placed by visual similarity, with its "looks like" and "reads like" links. |
 | `app/components/GalleryWalk.client.tsx` | The walk-through gallery (three.js): a building the visitor enters from a forecourt. Its entrance hall is the map: each section of the collection is a gallery, shown on the hall's walls by three of its own works, and a click on one goes in. Inside a gallery the works hang in a few large rooms by series or author and then by date. The visitor roams freely (drag or mouse look, keys or a click on the floor to walk), can open a map of the building at any time, and can look at any work up close in a viewer inside the gallery (zoom, pages). A list view is the accessible alternative. Reads `web/walk/works.json` from the bucket. |
 | `app/data/gallery_periods.json` | Gallery settings: the order of the galleries and how many works a room holds. |
@@ -75,7 +75,9 @@ when it is built.
 | `make_site_content.py` | Generate `canopy.yml` and the collection pages. |
 | `make_walk.py` | Write the gallery's data file. |
 | `ocr_from_r2.py`, `make_annotations.py` | OCR the documents; attach the text to the manifests. |
-| `make_related.py`, `make_text_index.py` | Similar items; the index for searching inside the texts. |
+| `make_related.py`, `make_text_index.py` | Similar items; the indexes for searching inside the texts (Spanish, and English from the translations). |
+| `translate_texts.py`, `make_meaning_index.py` | English translations of the texts; the index for searching them by meaning. |
+| `clean_search_summaries.mjs` | Run by `npm run build` after the Canopy build: gives each page its own description as its line in the search results. |
 | `tag_images.py`, `contact_sheets.py`, `tag_vocabulary.json` | Image tags. |
 | `merge_readings.py` | Bring titles and marks read from the items into `enrichment.csv`; write the review sheet. |
 | `merge_dates.py` | Bring dates found in library catalogues and bibliographies into `dates_researched.csv`, deciding which are firm and which are estimates. |
@@ -264,8 +266,46 @@ Run the steps in order from the repository root. Every script can be re-run.
     python tools/make_text_index.py ../data ../work
     ```
 
-12. **Mirror the data folder to the bucket** (see above), then commit and push the
+12. **Translate new texts and refresh the search by meaning.** Run with the
+    OCR environment's Python. `translate_texts.py` translates every text that
+    is new or has changed (it picks up where it stopped; about 250 words a
+    second on a laptop GPU), and writes `web/translation/<objectid>.json`.
+    Then run step 11 again, so that the English index includes the new
+    translations, and rebuild the index of passages:
+
+    ```sh
+    python tools/translate_texts.py ../data ../work
+    python tools/make_text_index.py ../data ../work
+    python tools/make_meaning_index.py ../data ../work
+    ```
+
+    Do not run `make_meaning_index.py` on the GPU while a translation or OCR
+    run is using it (set `CUDA_VISIBLE_DEVICES=` to keep it on the processor).
+
+13. **Mirror the data folder to the bucket** (see above), then commit and push the
    regenerated pages.
+
+## Translation and search by meaning
+
+The texts are translated from Spanish into English on the project's own
+computer with the open translation model `Helsinki-NLP/opus-mt-es-en`,
+sentence by sentence. The translation is a reading aid: it does not know the
+period's slang, it handles verse badly, and it translates the misreadings of
+OCR along with the text. Item pages offer it beside the Spanish and say what
+it is.
+
+The Texts page searches in two ways, both without a server:
+
+- **Exact match** looks for the words typed in the Spanish of the pages and in
+  their English translation (`web/search/`, `web/search-en/`).
+- **By meaning** finds passages that are about what was typed, in English.
+  `make_meaning_index.py` turns every passage of the translations into a short
+  list of numbers with the model `BAAI/bge-small-en-v1.5`; the Texts page does
+  the same to the question in the visitor's browser and shows the nearest
+  passages. The browser's copy of the model and the library that runs it are
+  served from the bucket (`web/models/`, `web/lib/transformers-3.8.1/`), about
+  55 MB on a first visit, kept by the browser afterwards. It is slow on a
+  phone.
 
 ## The original site's arrangement
 

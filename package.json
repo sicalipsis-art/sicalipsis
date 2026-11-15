@@ -5,7 +5,7 @@
   "private": true,
   "main": "app/scripts/canopy-build.mjs",
   "scripts": {
-    "build": "tsx app/scripts/canopy-build.mts",
+    "build": "tsx app/scripts/canopy-build.mts && node tools/clean_search_summaries.mjs",
     "dev": "tsx app/scripts/canopy-build.mts"
   },
   "dependencies": {
