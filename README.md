@@ -29,14 +29,13 @@ when it is built.
   - explore the collection as a network of items that look alike and read alike
     (**Network**);
   - walk through the collection as a building (**Gallery walk**).
-- Images and manifests are served from the bucket's public development address,
-  `https://pub-86bc04aba3b948f081b236797ce9d2a6.r2.dev/web`. Cloudflare
-  rate-limits that address and does not intend it for production; a custom
-  domain should replace it before the site is announced (then run the
-  publishing steps below again with the new address).
-- The bucket's CORS policy allows `https://sicalipsis-art.github.io` only, so in
-  a local preview the viewer cannot load manifests unless
-  `http://localhost:5001` is added to the policy.
+- Images and manifests are served from the bucket's custom domain,
+  `https://files.sicalipsis.org/web`, through Cloudflare's cache (a cache rule
+  on that hostname makes manifests, indexes and texts cacheable as well as
+  images). The bucket's development address (`r2.dev`) is to be switched off
+  once the site is at its permanent address.
+- The bucket's CORS policy allows `https://sicalipsis-art.github.io`,
+  `https://sicalipsis.humanities.ucla.edu` and `http://localhost:5001`.
 - The viewer shows one image per page, 1,600 pixels on its long side; the
   original scans are about that size, so deep-zoom tiles would add little.
 - OCR has read part of the collection and is still running; see "Known gaps".
